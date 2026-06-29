@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-brand-cream text-gray-900 antialiased;
+  }
+
+  h1, h2, h3 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  /* ── Pixel border ──────────────────────────────────────────────────────────── */
+  .pixel-border {
+    border: 3px solid #1a0a3c;
+    box-shadow: 4px 4px 0 #1a0a3c;
+    border-radius: 0;
+  }
+
+  .pixel-border-sm {
+    border: 2px solid #1a0a3c;
+    box-shadow: 2px 2px 0 #1a0a3c;
+    border-radius: 0;
+  }
+
+  .pixel-border-purple {
+    border: 3px solid #5B21B6;
+    box-shadow: 4px 4px 0 #5B21B6;
+    border-radius: 0;
+  }
+
+  .pixel-border-saffron {
+    border: 3px solid #EA580C;
+    box-shadow: 4px 4px 0 #EA580C;
+    border-radius: 0;
+  }
+
+  /* ── Pixel card ────────────────────────────────────────────────────────────── */
+  .pixel-card {
+    background: #fff;
+    border: 3px solid #1a0a3c;
+    box-shadow: 5px 5px 0 #1a0a3c;
+    border-radius: 0;
+  }
+
+  .pixel-card-cream {
+    background: #FEF9EF;
+    border: 3px solid #1a0a3c;
+    box-shadow: 5px 5px 0 #1a0a3c;
+    border-radius: 0;
+  }
+
+  /* ── Pixel button ──────────────────────────────────────────────────────────── */
+  .pixel-btn {
+    border: 3px solid #1a0a3c;
+    box-shadow: 4px 4px 0 #1a0a3c;
+    border-radius: 0;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+    user-select: none;
+  }
+
+  .pixel-btn:hover:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 #1a0a3c;
+  }
+
+  .pixel-btn:active:not(:disabled) {
+    transform: translate(4px, 4px);
+    box-shadow: none;
+  }
+
+  .pixel-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .pixel-btn-sm {
+    border: 2px solid #1a0a3c;
+    box-shadow: 3px 3px 0 #1a0a3c;
+    border-radius: 0;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+
+  .pixel-btn-sm:hover:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #1a0a3c;
+  }
+
+  .pixel-btn-sm:active:not(:disabled) {
+    transform: translate(3px, 3px);
+    box-shadow: none;
+  }
+
+  /* ── Pixel input ───────────────────────────────────────────────────────────── */
+  .pixel-input {
+    border: 2px solid #1a0a3c;
+    border-radius: 0;
+    background-color: #fff;
+    outline: none;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    width: 100%;
+    transition: box-shadow 0.1s ease;
+  }
+
+  .pixel-input:focus {
+    box-shadow: 0 0 0 2px #5B21B6;
+  }
+
+  /* ── Section header ────────────────────────────────────────────────────────── */
+  .pixel-section-header {
+    background: #5B21B6;
+    color: #FEF9EF;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.75rem;
+    border-bottom: 3px solid #1a0a3c;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

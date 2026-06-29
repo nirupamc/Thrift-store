@@ -1,0 +1,8 @@
+{
+  "/products/[slug]/page": "app/products/[slug]/page.js",
+  "/products/page": "app/products/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/vendor/dashboard/page": "app/vendor/dashboard/page.js",
+  "/vendor/products/new/page": "app/vendor/products/new/page.js",
+  "/vendor/products/page": "app/vendor/products/page.js"
+}

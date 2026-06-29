@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "backend-development-feature-development": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/backend-development-feature-development/SKILL.md",
+      "computedHash": "c9dd43023d3b7c68dbaa7b9f8bb3c386116ba077e799af98de4ac691dc4ff7cc"
+    },
+    "backend-patterns": {
+      "source": "affaan-m/ECC",
+      "sourceType": "github",
+      "skillPath": "skills/backend-patterns/SKILL.md",
+      "computedHash": "781ce6d7e80bc052e673a1520cb35451a294e7fc98c91a749e3d016b82e1197f"
+    },
+    "frontend-patterns": {
+      "source": "affaan-m/ECC",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-patterns/SKILL.md",
+      "computedHash": "800420e1cd464491fee0f21f3d118bfdb23ade62750c306c18e3fe4ecfafc5d3"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "c7ddcc95cc869b281b766df85bef629acf655bfb516cb32647d5b8215cab2f4e"
+    }
+  }
+}

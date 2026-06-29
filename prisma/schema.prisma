@@ -1,0 +1,444 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  BUYER
+  VENDOR
+  ADMIN
+}
+
+enum ProductCondition {
+  NEW_WITH_TAGS
+  LIKE_NEW
+  GOOD
+  FAIR
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  SOLD
+  INACTIVE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+enum Rarity {
+  COMMON
+  UNCOMMON
+  RARE
+  VINTAGE_RARE
+}
+
+enum Gender {
+  MEN
+  WOMEN
+  UNISEX
+  KIDS
+}
+
+// ─── Core Models ──────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  phone        String    @unique
+  passwordHash String
+  role         UserRole  @default(BUYER)
+  isVerified   Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  isSuspended  Boolean   @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  vendor    Vendor?
+  buyer     Buyer?
+  addresses Address[]
+
+  @@index([email])
+  @@index([phone])
+  @@map("users")
+}
+
+model Vendor {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName String
+  avatar      String?
+  bio         String?
+  isApproved  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  rating      Float    @default(0)
+  ratingCount Int      @default(0)
+  totalSales  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store     Store?
+  products  Product[]
+  subOrders SubOrder[]
+  payouts   Payout[]
+  drops     Drop[]
+
+  @@map("vendors")
+}
+
+model Buyer {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders         Order[]
+  reviews        Review[]
+  wishlist       WishlistItem[]
+  followedStores StoreFollower[]
+
+  @@map("buyers")
+}
+
+// ─── Store ────────────────────────────────────────────────────────────────────
+
+model Store {
+  id          String   @id @default(cuid())
+  vendorId    String   @unique
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String   @unique
+  description String?
+  logo        String?
+  banner      String?
+  city        String
+  state       String?
+
+  // ── MySpace-style customisation ───────────────────────────────────────────
+  styleTags    String[]  // e.g. ["Y2K", "Boho", "Vintage"]
+  bannerColor  String?   // hex, e.g. "#FF5733"
+  dropSchedule String?   // e.g. "Friday 6PM IST"
+  storeTheme   Json?     // full MySpace-style theme blob (see StoreTheme type)
+
+  isActive    Boolean  @default(true)
+  isApproved  Boolean  @default(false)
+  policies    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products  Product[]
+  followers StoreFollower[]
+  drops     Drop[]
+
+  @@index([slug])
+  @@index([city])
+  @@map("stores")
+}
+
+// ─── Catalogue ────────────────────────────────────────────────────────────────
+
+model Category {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  slug     String  @unique
+  parentId String?
+
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  products Product[]
+
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+  @@map("categories")
+}
+
+model Product {
+  id            String           @id @default(cuid())
+  vendorId      String
+  vendor        Vendor           @relation(fields: [vendorId], references: [id])
+  storeId       String
+  store         Store            @relation(fields: [storeId], references: [id])
+  categoryId    String
+  category      Category         @relation(fields: [categoryId], references: [id])
+  title         String
+  slug          String           @unique
+  description   String
+  originalPrice Decimal          @db.Decimal(10, 2)
+  sellingPrice  Decimal          @db.Decimal(10, 2)
+  condition     ProductCondition
+  status        ProductStatus    @default(DRAFT)
+  isAvailable   Boolean          @default(true)
+  city          String
+
+  // ── Visuals & physical ───────────────────────────────────────────────────────
+  images        String[]
+  color         String[]
+  brand         String?
+  size          String?
+  fabric        String?
+  era           String?          // e.g. "90s", "Y2K", "80s"
+
+  // ── Thrift-specific discovery ────────────────────────────────────────────────
+  gender        Gender
+  rarity        Rarity           @default(COMMON)
+  style         String[]         // e.g. ["Y2K", "Streetwear", "Boho"]
+  tags          String[]         // e.g. ["vintage", "floral", "summer"]
+
+  // ── Condition honesty ────────────────────────────────────────────────────────
+  defects       String?          // honest description of any flaws
+  visibleSpots  String?          // describe wear-spot locations
+
+  // ── Structured extras ────────────────────────────────────────────────────────
+  measurements  Json?            // { chest: "38in", length: "24in" }
+  metadata      Json?            // flexible Shopify-style key-value store
+
+  views         Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  orderItems OrderItem[]
+  reviews    Review[]
+  wishlist   WishlistItem[]
+
+  @@index([slug])
+  @@index([vendorId])
+  @@index([categoryId])
+  @@index([city])
+  @@index([brand])
+  @@index([rarity])
+  @@index([gender])
+  @@index([status, isAvailable])
+  // tags and style are String[] — add a GIN index manually via raw SQL migration
+  // for hasSome / contains queries at scale:
+  //   CREATE INDEX products_tags_gin   ON products USING GIN (tags);
+  //   CREATE INDEX products_style_gin  ON products USING GIN (style);
+  @@map("products")
+}
+
+// ─── Address ──────────────────────────────────────────────────────────────────
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+model Order {
+  id             String      @id @default(cuid())
+  buyerId          String
+  buyer            Buyer    @relation(fields: [buyerId], references: [id])
+  addressId        String?
+  address          Address? @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  shippingSnapshot Json?    // frozen shipping address JSON captured at checkout
+  status           OrderStatus @default(PENDING)
+  totalAmount    Decimal     @db.Decimal(10, 2)
+  discountAmount Decimal     @db.Decimal(10, 2) @default(0)
+  shippingAmount Decimal     @db.Decimal(10, 2) @default(0)
+  finalAmount    Decimal     @db.Decimal(10, 2)
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  subOrders SubOrder[]
+  payment   Payment?
+
+  @@index([buyerId])
+  @@index([status])
+  @@map("orders")
+}
+
+// Sub-order = one vendor's slice of a multi-vendor cart checkout
+model SubOrder {
+  id             String      @id @default(cuid())
+  orderId        String
+  order          Order       @relation(fields: [orderId], references: [id])
+  vendorId       String
+  vendor         Vendor      @relation(fields: [vendorId], references: [id])
+  status         OrderStatus @default(PENDING)
+  subtotal       Decimal     @db.Decimal(10, 2)
+  shippingAmount Decimal     @db.Decimal(10, 2) @default(0)
+  trackingNumber String?
+  trackingUrl    String?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  items  OrderItem[]
+  payout Payout?
+
+  @@index([orderId])
+  @@index([vendorId])
+  @@map("sub_orders")
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  subOrderId String
+  subOrder   SubOrder @relation(fields: [subOrderId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  totalPrice Decimal  @db.Decimal(10, 2)
+  snapshot   Json     // product title/image/condition frozen at order time
+  createdAt  DateTime @default(now())
+
+  @@index([subOrderId])
+  @@map("order_items")
+}
+
+// ─── Payment ──────────────────────────────────────────────────────────────────
+
+model Payment {
+  id                 String        @id @default(cuid())
+  orderId            String        @unique
+  order              Order         @relation(fields: [orderId], references: [id])
+  razorpayOrderId    String?       @unique
+  razorpayPaymentId  String?       @unique
+  razorpaySignature  String?
+  amount             Decimal       @db.Decimal(10, 2)
+  currency           String        @default("INR")
+  status             PaymentStatus @default(PENDING)
+  method             String?
+  failureReason      String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+// ─── Vendor Payout ────────────────────────────────────────────────────────────
+
+model Payout {
+  id               String       @id @default(cuid())
+  vendorId         String
+  vendor           Vendor       @relation(fields: [vendorId], references: [id])
+  subOrderId       String       @unique
+  subOrder         SubOrder     @relation(fields: [subOrderId], references: [id])
+  grossAmount      Decimal      @db.Decimal(10, 2)
+  platformFee      Decimal      @db.Decimal(10, 2)
+  netAmount        Decimal      @db.Decimal(10, 2)
+  status           PayoutStatus @default(PENDING)
+  razorpayPayoutId String?
+  processedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([vendorId])
+  @@map("payouts")
+}
+
+// ─── Social ───────────────────────────────────────────────────────────────────
+
+model Review {
+  id        String   @id @default(cuid())
+  buyerId   String
+  buyer     Buyer    @relation(fields: [buyerId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  rating    Int
+  comment   String?
+  images    String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([buyerId, productId])
+  @@index([productId])
+  @@map("reviews")
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  buyerId   String
+  buyer     Buyer    @relation(fields: [buyerId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([buyerId, productId])
+  @@map("wishlist_items")
+}
+
+// ─── Store Follows ────────────────────────────────────────────────────────────
+
+// ─── Drops ────────────────────────────────────────────────────────────────────
+
+model Drop {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
+  dropTitle   String
+  description String?
+  scheduledAt DateTime
+  productIds  String[]
+  isLive      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([scheduledAt])
+  @@map("drops")
+}
+
+model StoreFollower {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  buyerId   String
+  buyer     Buyer    @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([storeId, buyerId])
+  @@index([buyerId])
+  @@map("store_followers")
+}
