@@ -39,7 +39,7 @@ export default function ProfilePage() {
     return <div className="min-h-screen flex items-center justify-center text-gray-400">Redirecting...</div>
   }
 
-  const displayName = user?.displayName || user?.email || 'ThriftBazaar User'
+  const displayName = user?.vendor?.displayName || user?.email || 'ThriftBazaar User'
   const initials = displayName.slice(0, 2).toUpperCase()
   const totalOrders = ordersData?.meta?.total ?? ordersData?.data?.length ?? 0
   const totalFollowing = followingData?.meta?.total ?? 0
