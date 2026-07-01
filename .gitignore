@@ -8,4 +8,4 @@ logs/
 .DS_Store
 coverage/
 .nyc_output/
-prisma/migrations/
+public/uploads/
