@@ -16,9 +16,16 @@ const app = express();
 
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  ...(env.FRONTEND_URL ? [env.FRONTEND_URL] : []),
+  ...env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean),
+].filter((o, i, arr) => o && arr.indexOf(o) === i); // deduplicate
+
 app.use(
   cors({
-    origin: env.ALLOWED_ORIGINS.split(','),
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   }),
@@ -26,6 +33,9 @@ app.use(
 app.set('trust proxy', 1);
 
 // ── Static file serving ───────────────────────────────────────────────────────
+// NOTE: local /uploads works for development only. In production, image
+// uploads should go through Cloudinary (already wired in config/cloudinary.ts).
+// Render's ephemeral filesystem does not persist between deploys.
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 // ── General middleware ────────────────────────────────────────────────────────

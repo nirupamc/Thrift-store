@@ -10,6 +10,9 @@ const envSchema = z.object({
 
   DATABASE_URL: z.string().url(),
 
+  // Upstash / production: set REDIS_URL (takes precedence)
+  // Local dev: set REDIS_HOST + REDIS_PORT + REDIS_PASSWORD
+  REDIS_URL: z.string().url().optional(),
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().default(6379),
   REDIS_PASSWORD: z.string().optional(),
@@ -23,6 +26,7 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string(),
   RAZORPAY_WEBHOOK_SECRET: z.string(),
 
+  FRONTEND_URL: z.string().url().optional(),
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900_000),

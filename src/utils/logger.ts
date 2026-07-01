@@ -16,10 +16,12 @@ const consoleFormat = combine(
 
 const fileFormat = combine(timestamp(), errors({ stack: true }), json());
 
-export const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  transports: [
-    new winston.transports.Console({ format: consoleFormat }),
+const transports: winston.transport[] = [
+  new winston.transports.Console({ format: consoleFormat }),
+]
+
+if (process.env.NODE_ENV !== 'production') {
+  transports.push(
     new DailyRotateFile({
       filename: path.join('logs', 'error-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
@@ -35,5 +37,10 @@ export const logger = winston.createLogger({
       maxFiles: '14d',
       zippedArchive: true,
     }),
-  ],
+  )
+}
+
+export const logger = winston.createLogger({
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  transports,
 });

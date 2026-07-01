@@ -22,8 +22,10 @@ import type {
   AdminPayout,
 } from './types'
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1'
+
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api/v1',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -67,7 +69,7 @@ async function doRefresh(): Promise<string> {
 
   // Use a bare axios instance so this call doesn't trigger our own interceptors
   const res = await axios.post<{ data: { tokens: { accessToken: string; refreshToken: string } } }>(
-    'http://localhost:5000/api/v1/auth/refresh',
+    `${API_BASE}/auth/refresh`,
     { refreshToken },
   )
   const { accessToken, refreshToken: newRefreshToken } = res.data.data.tokens

@@ -17,15 +17,22 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+# Install production deps, then add prisma CLI for migrate deploy
+RUN npm ci --omit=dev && npm install --no-save prisma
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY prisma ./prisma
+COPY entrypoint.sh .
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chmod +x entrypoint.sh \
+    && addgroup -S appgroup \
+    && adduser -S appuser -G appgroup \
+    && mkdir -p /app/logs \
+    && chown -R appuser:appgroup /app
+
 USER appuser
 
 EXPOSE 5000
 
-CMD ["node", "dist/server.js"]
+CMD ["./entrypoint.sh"]

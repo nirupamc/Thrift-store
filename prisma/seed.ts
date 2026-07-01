@@ -11,6 +11,7 @@ async function main(): Promise<void> {
   // ── Passwords ─────────────────────────────────────────────────────────────────
   const adminHash  = await bcrypt.hash('Admin@123',  SALT_ROUNDS)
   const vendorHash = await bcrypt.hash('Vendor@123', SALT_ROUNDS)
+  const buyerHash  = await bcrypt.hash('Buyer@123',  SALT_ROUNDS)
 
   // ── Categories ────────────────────────────────────────────────────────────────
   const [catTops, catBottoms, catDresses, catOuterwear] = await Promise.all([
@@ -35,6 +36,21 @@ async function main(): Promise<void> {
     },
   })
   console.log('✅  Admin user  —  admin@thriftbazaar.in / Admin@123')
+
+  // ── Demo buyer ────────────────────────────────────────────────────────────────
+  await prisma.user.upsert({
+    where:  { email: 'demo.buyer@example.com' },
+    update: {},
+    create: {
+      email:        'demo.buyer@example.com',
+      phone:        '9000000099',
+      passwordHash: buyerHash,
+      role:         UserRole.BUYER,
+      isVerified:   true,
+      isActive:     true,
+    },
+  })
+  console.log('✅  Demo buyer  —  demo.buyer@example.com / Buyer@123')
 
   // ── Vendor helpers ────────────────────────────────────────────────────────────
   async function makeVendor(opts: {
@@ -507,6 +523,7 @@ async function main(): Promise<void> {
   console.log('  Vendor → retro.raj@example.com        / Vendor@123')
   console.log('  Vendor → priya.vintage@example.com    / Vendor@123')
   console.log('  Vendor → thrift.trunk@example.com     / Vendor@123')
+  console.log('  Buyer  → demo.buyer@example.com       / Buyer@123')
 }
 
 main()

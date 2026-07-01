@@ -7,7 +7,12 @@ import { useMutation } from '@tanstack/react-query'
 import { Suspense } from 'react'
 import { loginUser } from '@/lib/api'
 import { useAuthStore } from '@/lib/authStore'
-import { Diamond, Sparkles } from 'lucide-react'
+import { Diamond, Sparkles, ChevronDown } from 'lucide-react'
+
+const DEMO_CREDENTIALS = [
+  { role: 'Vendor', email: 'retro.raj@example.com',  password: 'Vendor@123' },
+  { role: 'Buyer',  email: 'demo.buyer@example.com', password: 'Buyer@123'  },
+]
 
 function LoginForm() {
   const router = useRouter()
@@ -18,6 +23,7 @@ function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [apiError, setApiError] = useState('')
+  const [showDemo, setShowDemo] = useState(false)
 
   const mutation = useMutation({
     mutationFn: loginUser,
@@ -48,6 +54,13 @@ function LoginForm() {
     mutation.mutate({ email, password })
   }
 
+  function fillDemo(cred: typeof DEMO_CREDENTIALS[0]) {
+    setEmail(cred.email)
+    setPassword(cred.password)
+    setApiError('')
+    setShowDemo(false)
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-brand-cream relative overflow-hidden">
       {/* Pixel star decorations */}
@@ -61,6 +74,37 @@ function LoginForm() {
           <Link href="/" className="font-heading text-3xl font-bold text-brand-purple">ThriftBazaar</Link>
           <h1 className="font-heading text-2xl font-bold text-gray-900 mt-6 mb-1 uppercase tracking-wide">Welcome Back</h1>
           <p className="text-gray-500 text-sm">Log in to continue shopping</p>
+        </div>
+
+        {/* Demo credentials panel */}
+        <div className="mb-4 pixel-card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowDemo((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-brand-purple bg-brand-purple/5 hover:bg-brand-purple/10 transition-colors"
+          >
+            <span>Demo credentials — try the app instantly</span>
+            <ChevronDown size={16} className={`transition-transform ${showDemo ? 'rotate-180' : ''}`} />
+          </button>
+          {showDemo && (
+            <div className="divide-y divide-gray-100">
+              {DEMO_CREDENTIALS.map((cred) => (
+                <button
+                  key={cred.role}
+                  type="button"
+                  onClick={() => fillDemo(cred)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-brand-cream transition-colors group"
+                >
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-brand-purple mr-2">{cred.role}</span>
+                    <span className="text-sm text-gray-700">{cred.email}</span>
+                    <span className="block text-xs text-gray-400 mt-0.5">Password: {cred.password}</span>
+                  </div>
+                  <span className="text-xs text-brand-purple opacity-0 group-hover:opacity-100 transition-opacity font-medium">Use →</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="pixel-card p-8 space-y-4">
