@@ -6,7 +6,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess, sendPaginated } from '../../utils/response';
 import { uploadAvatar } from '../../config/cloudinary';
 import { AppError, UnauthorizedError } from '../../utils/AppError';
-import { uploadStoreImages } from '../../middleware/upload';
+import { uploadStoreImages, uploadFont, uploadStoreBannerSingle } from '../../middleware/upload';
 
 // Wraps multer fields-upload so its errors flow through errorHandler.
 // Accepts avatarImage and/or bannerImage in a single multipart request.
@@ -86,6 +86,48 @@ export const unfollowStore = asyncHandler(async (req: Request, res: Response) =>
   if (!req.user) throw new UnauthorizedError();
   await StoreService.unfollowStore(req.user.sub, req.params.storeId);
   sendSuccess(res, null, 'Unfollowed successfully');
+});
+
+// Banner image upload middleware wrapper
+export function handleBannerUpload(req: Request, res: Response, next: NextFunction): void {
+  uploadStoreBannerSingle(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'LIMIT_FILE_SIZE') {
+      return next(new AppError('Image must be under 5 MB', 400, 'FILE_TOO_LARGE'));
+    }
+    next(err);
+  });
+}
+
+export const uploadBannerImage = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new UnauthorizedError();
+  const file = req.file;
+  if (!file) throw new AppError('No image file uploaded', 400, 'NO_FILE');
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const url = `${baseUrl}/uploads/stores/${file.filename}`;
+  const store = await StoreService.saveBannerImage(req.params.storeId, req.user.sub, url);
+  sendSuccess(res, { url, store }, 'Banner image uploaded');
+});
+
+// Font upload middleware wrapper — passes multer errors through errorHandler
+export function handleFontUpload(req: Request, res: Response, next: NextFunction): void {
+  uploadFont(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'LIMIT_FILE_SIZE') {
+      return next(new AppError('Font file must be under 2 MB', 400, 'FILE_TOO_LARGE'));
+    }
+    next(err);
+  });
+}
+
+export const uploadStoreFont = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new UnauthorizedError();
+  const file = req.file;
+  if (!file) throw new AppError('No font file uploaded', 400, 'NO_FILE');
+  const fontUrl = `/uploads/fonts/${file.filename}`;
+  const fontName = (req.body.fontName as string | undefined)?.trim() || file.originalname.replace(/\.[^.]+$/, '');
+  const store = await StoreService.uploadStoreFont(req.params.storeId, req.user.sub, fontUrl, fontName);
+  sendSuccess(res, store, 'Font uploaded successfully');
 });
 
 export const getFollowedStores = asyncHandler(async (req: Request, res: Response) => {

@@ -1,8 +1,7 @@
 {
-  "/products/[slug]/page": "app/products/[slug]/page.js",
-  "/products/page": "app/products/page.js",
-  "/auth/login/page": "app/auth/login/page.js",
+  "/stores/[storeId]/page": "app/stores/[storeId]/page.js",
+  "/vendor/store/page": "app/vendor/store/page.js",
   "/vendor/dashboard/page": "app/vendor/dashboard/page.js",
-  "/vendor/products/new/page": "app/vendor/products/new/page.js",
-  "/vendor/products/page": "app/vendor/products/page.js"
+  "/vendor/products/page": "app/vendor/products/page.js",
+  "/vendor/store/customize/page": "app/vendor/store/customize/page.js"
 }

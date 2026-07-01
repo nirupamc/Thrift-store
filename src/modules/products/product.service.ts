@@ -171,9 +171,10 @@ export async function listProducts(query: ListProductsQuery) {
 
 // ─── Get one ──────────────────────────────────────────────────────────────────
 
-export async function getProduct(id: string) {
+export async function getProduct(idOrSlug: string) {
+  const isCuid = /^c[a-z0-9]{24}$/.test(idOrSlug);
   const product = await prisma.product.findUnique({
-    where: { id },
+    where: isCuid ? { id: idOrSlug } : { slug: idOrSlug },
     include: {
       category: { select: { id: true, name: true, slug: true } },
       store: { select: { id: true, name: true, slug: true, city: true, state: true } },
@@ -198,7 +199,7 @@ export async function getProduct(id: string) {
   if (!product) throw new NotFoundError('Product');
 
   // fire-and-forget — never blocks the response
-  prisma.product.update({ where: { id }, data: { views: { increment: 1 } } }).catch(() => {});
+  prisma.product.update({ where: { id: product.id }, data: { views: { increment: 1 } } }).catch(() => {});
 
   return product;
 }
@@ -256,6 +257,49 @@ export async function deleteProduct(productId: string, userId: string) {
   }
 
   await prisma.product.delete({ where: { id: productId } });
+}
+
+// ─── Vendor's own products (authenticated, all statuses) ─────────────────────
+
+export async function listVendorProducts(
+  userId: string,
+  pagination: { page: number; limit: number },
+) {
+  const { page, limit } = pagination;
+
+  const vendor = await prisma.vendor.findUnique({ where: { userId }, select: { id: true } });
+  if (!vendor) throw new NotFoundError('Vendor profile');
+
+  const where: Prisma.ProductWhereInput = { vendorId: vendor.id };
+
+  const [data, total] = await prisma.$transaction([
+    prisma.product.findMany({
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        sellingPrice: true,
+        originalPrice: true,
+        condition: true,
+        city: true,
+        images: true,
+        isAvailable: true,
+        status: true,
+        rarity: true,
+        brand: true,
+        createdAt: true,
+        category: { select: { id: true, name: true } },
+        store:    { select: { id: true, name: true } },
+      },
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return { data, total };
 }
 
 // ─── Store products ────────────────────────────────────────────────────────────

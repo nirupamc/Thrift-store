@@ -39,6 +39,17 @@ export interface StoreTheme {
   showReviews?: boolean
   showDrops?: boolean
   showAbout?: boolean
+  // Font colors
+  headingFontColor?: string
+  bodyFontColor?: string
+  // Product display overrides
+  productNameFont?: string
+  productNameFontColor?: string
+  priceFont?: string
+  priceFontColor?: string
+  // Custom font
+  customFontUrl?: string | null
+  customFontName?: string | null
 }
 
 export interface Store {
@@ -53,6 +64,7 @@ export interface Store {
   styleTags: string[]
   avatar?: string
   logo?: string
+  banner?: string
   bannerColor?: string
   dropSchedule?: string
   storeTheme?: StoreTheme | null

@@ -14,7 +14,7 @@ export function Footer() {
 
   return (
     <>
-      <footer className="bg-[#1a0a3c] text-brand-cream">
+      <footer className="bg-[#2C2A28] text-brand-cream">
         {/* Main grid */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
@@ -103,7 +103,7 @@ export function Footer() {
         <div className="fixed bottom-6 right-6 z-50 pixel-card max-w-xs w-72">
           {/* Title bar */}
           <div
-            style={{ background: 'linear-gradient(to right, #2D1B69, #5B21B6)' }}
+            style={{ background: 'linear-gradient(to right, #2C2A28, #3B7A57)' }}
             className="flex items-center justify-between px-3 py-2"
           >
             <span className="text-white text-xs font-bold flex items-center gap-1.5"><MessageSquare size={12} /> ThriftBazaar.exe</span>

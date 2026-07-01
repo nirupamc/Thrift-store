@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { useAuthStore } from '@/lib/authStore'
 import { fetchStore, saveStoreTheme } from '@/lib/api'
 import type { StoreTheme, StoreThemeSticker } from '@/lib/types'
-import { ArrowLeft, Check, X, FolderOpen, Save, Store, Zap, MessageSquare, Sparkles, Star } from 'lucide-react'
+import { ArrowLeft, Check, X, FolderOpen, Save, Store, Zap, MessageSquare, Sparkles, Star, Type, ShoppingBag } from 'lucide-react'
+import { uploadStoreFont, uploadStoreBannerImage } from '@/lib/api'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -76,9 +77,17 @@ const DEFAULT_THEME: StoreTheme = {
   showReviews:             true,
   showDrops:               true,
   showAbout:               true,
+  headingFontColor:        '#2C2A28',
+  bodyFontColor:           '#374151',
+  productNameFont:         'inherit',
+  productNameFontColor:    '#2C2A28',
+  priceFont:               'inherit',
+  priceFontColor:          '#F59E0B',
+  customFontUrl:           null,
+  customFontName:          null,
 }
 
-type Tab = 'banner' | 'background' | 'vibes' | 'typography' | 'layout'
+type Tab = 'banner' | 'background' | 'vibes' | 'typography' | 'layout' | 'fonts' | 'productDisplay'
 
 // ─── Style helpers ────────────────────────────────────────────────────────────
 
@@ -225,118 +234,125 @@ function StorePreview({
 
   return (
     <div
-      className="pixel-border overflow-hidden select-none relative"
+      className="pixel-border overflow-hidden select-none relative bg-[#F8F2E8]"
       style={{ ...getBorderCss(theme), fontFamily: font.bodyFont }}
     >
-      {/* Background */}
+      <EffectOverlay effect={theme.pageEffect ?? 'none'} />
+      <style>{`@keyframes marquee-scroll{from{transform:translateX(100%)}to{transform:translateX(-100%)}}`}</style>
+
+      {/* Banner — draggable area for sticker placement */}
       <div
-        className="relative"
-        style={{ backgroundColor: theme.bgColor ?? '#FEFCE8', ...patternStyle }}
+        ref={bannerRef}
+        className="relative w-full cursor-crosshair overflow-hidden"
+        style={{ minHeight: 120, ...effectiveBannerStyle }}
+        onMouseMove={onBannerMouseMove}
+        onMouseUp={onBannerMouseUp}
+        onMouseLeave={onBannerMouseUp}
       >
-        <EffectOverlay effect={theme.pageEffect ?? 'none'} />
-
-        {/* Banner */}
-        <div
-          ref={bannerRef}
-          className="relative w-full h-36 cursor-crosshair"
-          style={effectiveBannerStyle}
-          onMouseMove={onBannerMouseMove}
-          onMouseUp={onBannerMouseUp}
-          onMouseLeave={onBannerMouseUp}
-        >
-          {/* Stickers */}
-          {(theme.stickers ?? []).map((s, i) => (
-            <span
-              key={i}
-              className="absolute cursor-grab active:cursor-grabbing leading-none"
-              style={{ left: `${s.x}%`, top: `${s.y}%`, fontSize: s.size, lineHeight: 1, userSelect: 'none' }}
-              onMouseDown={(e) => onStickerMouseDown(e, i)}
-            >
-              {s.emoji}
-            </span>
-          ))}
-        </div>
-
-        {/* Marquee */}
-        {theme.marqueeText && (
-          <div
-            className="overflow-hidden whitespace-nowrap text-xs py-1.5 font-semibold"
-            style={{ backgroundColor: accent, color: '#fff' }}
+        {(theme.stickers ?? []).map((s, i) => (
+          <span
+            key={i}
+            className="absolute cursor-grab active:cursor-grabbing leading-none"
+            style={{ left: `${s.x}%`, top: `${s.y}%`, fontSize: s.size, lineHeight: 1, userSelect: 'none' }}
+            onMouseDown={(e) => onStickerMouseDown(e, i)}
           >
-            <style>{`
-              @keyframes marquee-scroll { from{transform:translateX(100%)} to{transform:translateX(-100%)} }
-            `}</style>
-            <span style={{ display: 'inline-block', animation: `marquee-scroll ${marqueeSecs}s linear infinite` }}>
-              {theme.marqueeText}
-            </span>
-          </div>
-        )}
+            {s.emoji}
+          </span>
+        ))}
+      </div>
 
-        {/* Store header */}
-        <div className="px-4 pt-3 pb-2 flex items-center gap-3">
-          <div className="w-12 h-12 bg-gray-300 flex-shrink-0 overflow-hidden border-2 border-white shadow">
+      {/* Marquee */}
+      {theme.marqueeText && (
+        <div
+          className="overflow-hidden whitespace-nowrap text-xs py-1 font-semibold"
+          style={{ backgroundColor: accent, color: '#fff' }}
+        >
+          <span style={{ display: 'inline-block', animation: `marquee-scroll ${marqueeSecs}s linear infinite` }}>
+            {theme.marqueeText}
+          </span>
+        </div>
+      )}
+
+      {/* Store info — on cream, avatar overlaps banner by ~20px */}
+      <div className="px-3 pb-2">
+        <div className="flex items-end gap-2 -mt-5">
+          <div
+            className="w-10 h-10 flex-shrink-0 overflow-hidden bg-gray-300"
+            style={{ border: '2px solid #F8F2E8' }}
+          >
             {logoUrl
               ? <img src={logoUrl} alt="logo" className="w-full h-full object-cover" />
-              : <span className="w-full h-full flex items-center justify-center"><Store size={20} /></span>}
+              : <span className="w-full h-full flex items-center justify-center"><Store size={14} /></span>}
           </div>
-          <div>
-            <p className="font-bold text-gray-900" style={{ fontFamily: font.headingFont, fontSize: 16 }}>{storeName || 'My Store'}</p>
-            <p className="text-xs text-gray-500">Mumbai, Maharashtra · 128 followers</p>
+          <div className="flex-1 min-w-0 mb-1">
+            <p
+              className="font-bold leading-tight truncate"
+              style={{ fontFamily: font.headingFont, fontSize: 13, color: theme.headingFontColor ?? '#2C2A28' }}
+            >
+              {storeName || 'My Store'}
+            </p>
+            <p className="text-[10px]" style={{ color: theme.bodyFontColor ?? '#6B7280' }}>
+              Mumbai · 128 followers
+            </p>
           </div>
           <button
-            className="ml-auto text-xs font-semibold px-3 py-1.5 text-white"
+            className="mb-1 text-[10px] font-semibold px-2 py-1 text-white flex-shrink-0"
             style={{ backgroundColor: accent }}
-          >Follow</button>
+          >
+            Follow
+          </button>
         </div>
+      </div>
 
-        {/* Product grid placeholder */}
-        <div className="px-4 pb-3">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Products</p>
+      {/* Products section — vendor bgColor + pattern applied here only */}
+      <div style={{ backgroundColor: theme.bgColor ?? '#F8F2E8', ...patternStyle }}>
+        <div className="px-3 pb-3 pt-1">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Products</p>
+
           {(theme.productLayout === 'list') ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex gap-2 bg-white p-2 shadow-sm">
-                  <div className="w-14 h-14 bg-gray-200 flex-shrink-0" />
-                  <div className="flex-1 space-y-1 pt-1">
-                    <div className="h-2.5 bg-gray-200 w-3/4" />
-                    <div className="h-2 bg-gray-100 w-1/2" />
-                    <div className="h-3 w-1/3" style={{ backgroundColor: accent + '33' }} />
+                <div key={i} className="flex gap-2 bg-white p-1.5 shadow-sm">
+                  <div className="w-10 h-10 bg-gray-200 flex-shrink-0" />
+                  <div className="flex-1 space-y-1 pt-0.5">
+                    <div className="h-2 bg-gray-200 w-3/4" />
+                    <div className="h-1.5 bg-gray-100 w-1/2" />
+                    <div className="h-2 w-1/3" style={{ backgroundColor: accent + '33' }} />
                   </div>
                 </div>
               ))}
             </div>
           ) : (theme.productLayout === 'magazine') ? (
-            <div className="columns-2 gap-2 space-y-2">
-              {[56, 40, 64, 48, 52].map((h, i) => (
+            <div className="columns-2 gap-2">
+              {[44, 32, 52, 40, 36].map((h, i) => (
                 <div key={i} className="break-inside-avoid bg-white shadow-sm overflow-hidden mb-2">
                   <div className="w-full bg-gray-200" style={{ height: h }} />
-                  <div className="p-1.5 space-y-1">
-                    <div className="h-2 bg-gray-200 w-3/4" />
-                    <div className="h-2.5 w-1/2" style={{ backgroundColor: accent + '33' }} />
+                  <div className="p-1 space-y-0.5">
+                    <div className="h-1.5 bg-gray-200 w-3/4" />
+                    <div className="h-2 w-1/2" style={{ backgroundColor: accent + '33' }} />
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {Array.from({ length: 6 }).map((_, i) => {
                 const isPolaroid = theme.productLayout === 'polaroid'
-                const rot = isPolaroid ? (i % 2 === 0 ? '-1.5deg' : '1.5deg') : '0deg'
                 return (
                   <div
                     key={i}
                     className="bg-white overflow-hidden shadow-sm"
                     style={{
-                      transform: `rotate(${rot})`,
+                      transform: isPolaroid ? `rotate(${i % 2 === 0 ? '-1.5deg' : '1.5deg'})` : undefined,
                       boxShadow: isPolaroid ? '0 4px 12px rgba(0,0,0,0.15)' : undefined,
-                      padding: isPolaroid ? '4px 4px 16px' : undefined,
+                      padding: isPolaroid ? '3px 3px 12px' : undefined,
                     }}
                   >
-                    <div className="w-full h-16 bg-gray-200" />
+                    <div className="w-full h-12 bg-gray-200" />
                     {!isPolaroid && (
-                      <div className="p-1.5 space-y-1">
-                        <div className="h-2 bg-gray-100 w-3/4" />
-                        <div className="h-2.5 w-1/2" style={{ backgroundColor: accent + '33' }} />
+                      <div className="p-1 space-y-0.5">
+                        <div className="h-1.5 bg-gray-100 w-3/4" />
+                        <div className="h-2 w-1/2" style={{ backgroundColor: accent + '33' }} />
                       </div>
                     )}
                   </div>
@@ -344,19 +360,23 @@ function StorePreview({
               })}
             </div>
           )}
-        </div>
 
-        {/* Section toggles preview */}
-        <div className="px-4 pb-4 flex gap-2 flex-wrap">
-          {theme.showDrops && (
-            <span className="text-xs px-2 py-1 font-medium flex items-center gap-1" style={{ backgroundColor: accent + '22', color: accent }}><Zap size={12} /> Drops</span>
-          )}
-          {theme.showReviews && (
-            <span className="text-xs px-2 py-1 font-medium flex items-center gap-1" style={{ backgroundColor: accent + '22', color: accent }}><MessageSquare size={12} /> Reviews</span>
-          )}
-          {theme.showAbout && (
-            <span className="text-xs px-2 py-1 font-medium" style={{ backgroundColor: accent + '22', color: accent }}>About</span>
-          )}
+          {/* Section badges */}
+          <div className="mt-2 flex gap-1.5 flex-wrap">
+            {theme.showDrops && (
+              <span className="text-[10px] px-1.5 py-0.5 font-medium flex items-center gap-0.5" style={{ backgroundColor: accent + '22', color: accent }}>
+                <Zap size={9} /> Drops
+              </span>
+            )}
+            {theme.showReviews && (
+              <span className="text-[10px] px-1.5 py-0.5 font-medium flex items-center gap-0.5" style={{ backgroundColor: accent + '22', color: accent }}>
+                <MessageSquare size={9} /> Reviews
+              </span>
+            )}
+            {theme.showAbout && (
+              <span className="text-[10px] px-1.5 py-0.5 font-medium" style={{ backgroundColor: accent + '22', color: accent }}>About</span>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -380,14 +400,17 @@ function ColorPicker({ value, onChange, label }: { value: string; onChange: (v: 
   )
 }
 
-function BannerTab({ theme, setTheme, bannerFile, setBannerFile, setBannerFileUrl }: {
+function BannerTab({ theme, setTheme, storeId, bannerFile, setBannerFile, setBannerFileUrl }: {
   theme: StoreTheme
   setTheme: (fn: (t: StoreTheme) => StoreTheme) => void
+  storeId: string
   bannerFile: File | null
   setBannerFile: (f: File | null) => void
   setBannerFileUrl: (u: string | null) => void
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const [bannerUploading, setBannerUploading] = useState(false)
+  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null)
 
   const set = useCallback(<K extends keyof StoreTheme>(key: K, val: StoreTheme[K]) =>
     setTheme((t) => ({ ...t, [key]: val })), [setTheme])
@@ -469,20 +492,38 @@ function BannerTab({ theme, setTheme, bannerFile, setBannerFile, setBannerFileUr
             type="file"
             accept="image/jpeg,image/png,image/webp"
             className="hidden"
-            onChange={(e) => {
+            onChange={async (e) => {
               const f = e.target.files?.[0]
-              if (f) {
-                setBannerFile(f)
-                setBannerFileUrl(URL.createObjectURL(f))
+              if (!f) return
+              setBannerFile(f)
+              setBannerUploadError(null)
+              setBannerUploading(true)
+              try {
+                const url = await uploadStoreBannerImage(storeId, f)
+                setBannerFileUrl(url)
+                setTheme(t => ({ ...t, bannerType: 'image', bannerImageUrl: url }))
+              } catch {
+                setBannerUploadError('Upload failed — please try again')
+              } finally {
+                setBannerUploading(false)
               }
             }}
           />
           <button
-            onClick={() => fileRef.current?.click()}
-            className="w-full py-3 border-2 border-dashed border-[#1a0a3c] text-sm text-gray-500 hover:border-brand-purple hover:text-brand-purple transition-colors"
+            onClick={() => !bannerUploading && fileRef.current?.click()}
+            disabled={bannerUploading}
+            className="w-full py-3 border-2 border-dashed border-[#2C2A28] text-sm text-gray-500 hover:border-forest hover:text-forest transition-colors disabled:opacity-60 disabled:cursor-wait"
           >
-            {bannerFile ? <span className="flex items-center gap-2"><Check size={16} />{bannerFile.name}</span> : <span className="flex items-center gap-2"><FolderOpen size={16} />Upload cover image</span>}
+            {bannerUploading
+              ? <span className="flex items-center justify-center gap-2"><span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" /> Uploading…</span>
+              : bannerFile && !bannerUploadError
+                ? <span className="flex items-center gap-2"><Check size={16} />{bannerFile.name}</span>
+                : <span className="flex items-center gap-2"><FolderOpen size={16} />Upload cover image</span>
+            }
           </button>
+          {bannerUploadError && (
+            <p className="text-xs text-red-500 text-center">{bannerUploadError}</p>
+          )}
           <p className="text-xs text-gray-400 text-center">Or paste an image URL</p>
           <input
             type="url"
@@ -833,8 +874,10 @@ export default function CustomizePage() {
   const [bannerFileUrl, setBannerFileUrl] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [draftLoaded, setDraftLoaded] = useState(false)
+  const [fontUploading, setFontUploading] = useState(false)
 
   const bannerRef = useRef<HTMLDivElement>(null)
+  const customFontRef = useRef<HTMLInputElement>(null)
   const dragState = useRef<{ index: number; origX: number; origY: number; mouseX: number; mouseY: number } | null>(null)
 
   // ── Fetch store ──────────────────────────────────────────────────────────────
@@ -856,8 +899,10 @@ export default function CustomizePage() {
         return
       } catch {}
     }
-    if (store?.storeTheme) {
-      setTheme(store.storeTheme as StoreTheme)
+    // Wait for the store query to resolve before initialising from server data
+    if (!store) return
+    if (store.storeTheme) {
+      setTheme({ ...DEFAULT_THEME, ...(store.storeTheme as StoreTheme) })
     }
     setDraftLoaded(true)
   }, [storeId, store, draftLoaded])
@@ -916,7 +961,7 @@ export default function CustomizePage() {
 
   // ── Save ─────────────────────────────────────────────────────────────────────
   const saveMutation = useMutation({
-    mutationFn: () => saveStoreTheme(storeId!, theme, bannerFile ?? undefined),
+    mutationFn: () => saveStoreTheme(storeId!, theme),
     onSuccess: () => {
       setToast({ message: 'Store updated!', type: 'success' })
       setBannerFile(null)
@@ -942,12 +987,14 @@ export default function CustomizePage() {
     )
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'banner',     label: 'Banner' },
-    { id: 'background', label: 'Background' },
-    { id: 'vibes',      label: 'Vibes' },
-    { id: 'typography', label: 'Typography' },
-    { id: 'layout',     label: 'Layout' },
+  const tabs: { id: Tab; label: string; icon?: React.ReactNode }[] = [
+    { id: 'banner',         label: 'Banner' },
+    { id: 'background',     label: 'Background' },
+    { id: 'vibes',          label: 'Vibes' },
+    { id: 'typography',     label: 'Typography' },
+    { id: 'layout',         label: 'Layout' },
+    { id: 'fonts',          label: 'Store Fonts',     icon: <Type size={13} /> },
+    { id: 'productDisplay', label: 'Product Display', icon: <ShoppingBag size={13} /> },
   ]
 
   return (
@@ -955,9 +1002,9 @@ export default function CustomizePage() {
       {toast && <Toast message={toast.message} type={toast.type} />}
 
       {/* ── Left: Controls ─────────────────────────────────────────────────── */}
-      <div className="w-80 flex-shrink-0 bg-white flex flex-col overflow-hidden" style={{ borderRight: '3px solid #1a0a3c' }}>
+      <div className="w-80 flex-shrink-0 bg-white flex flex-col overflow-hidden" style={{ borderRight: '3px solid #2C2A28' }}>
         {/* Header */}
-        <div className="px-5 pt-5 pb-3 flex-shrink-0" style={{ borderBottom: '2px solid #1a0a3c' }}>
+        <div className="px-5 pt-5 pb-3 flex-shrink-0" style={{ borderBottom: '2px solid #2C2A28' }}>
           <div className="flex items-center gap-2 mb-1">
             <Link href="/vendor/store" className="flex items-center gap-1 text-gray-400 hover:text-gray-600 text-sm font-bold"><ArrowLeft size={14} /> Back</Link>
           </div>
@@ -966,17 +1013,18 @@ export default function CustomizePage() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex-shrink-0" style={{ borderBottom: '2px solid #1a0a3c' }}>
+        <div className="flex-shrink-0" style={{ borderBottom: '2px solid #2C2A28' }}>
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`w-full text-left px-5 py-2.5 text-sm font-bold border-l-4 transition-colors ${
+              className={`w-full text-left px-5 py-2.5 text-sm font-bold border-l-4 transition-colors flex items-center gap-2 ${
                 activeTab === t.id
                   ? 'border-brand-purple text-brand-purple bg-purple-50'
                   : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
+              {t.icon && <span className="opacity-70">{t.icon}</span>}
               {t.label}
             </button>
           ))}
@@ -984,15 +1032,123 @@ export default function CustomizePage() {
 
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto p-5">
-          {activeTab === 'banner'     && <BannerTab theme={theme} setTheme={setTheme} bannerFile={bannerFile} setBannerFile={setBannerFile} setBannerFileUrl={setBannerFileUrl} />}
+          {activeTab === 'banner'     && <BannerTab theme={theme} setTheme={setTheme} storeId={storeId!} bannerFile={bannerFile} setBannerFile={setBannerFile} setBannerFileUrl={setBannerFileUrl} />}
           {activeTab === 'background' && <BackgroundTab theme={theme} setTheme={setTheme} />}
           {activeTab === 'vibes'      && <VibesTab theme={theme} setTheme={setTheme} />}
           {activeTab === 'typography' && <TypographyTab theme={theme} setTheme={setTheme} />}
           {activeTab === 'layout'     && <LayoutTab theme={theme} setTheme={setTheme} />}
+
+          {activeTab === 'fonts' && (
+            <div className="space-y-4">
+              <div className="pixel-section-header px-4 py-2 flex items-center gap-2">
+                <Type size={14} /> STORE FONTS
+              </div>
+              <div className="px-4 space-y-4">
+                {/* Heading font color */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Heading Color</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={theme.headingFontColor ?? '#2C2A28'}
+                      onChange={(e) => setTheme(t => ({ ...t, headingFontColor: e.target.value }))}
+                      className="w-10 h-10 cursor-pointer pixel-border-sm"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{theme.headingFontColor ?? '#2C2A28'}</span>
+                  </div>
+                </div>
+                {/* Body font color */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Body Text Color</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={theme.bodyFontColor ?? '#374151'}
+                      onChange={(e) => setTheme(t => ({ ...t, bodyFontColor: e.target.value }))}
+                      className="w-10 h-10 cursor-pointer pixel-border-sm"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{theme.bodyFontColor ?? '#374151'}</span>
+                  </div>
+                </div>
+                {/* Custom font upload */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Custom Font File (.woff2 / .ttf)</label>
+                  <p className="text-xs text-gray-400 mb-2">Upload a custom font that will be used on your store page.</p>
+                  <input
+                    type="file"
+                    accept=".woff2,.ttf"
+                    ref={customFontRef}
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file || !vendorStoreId) return
+                      try {
+                        setFontUploading(true)
+                        const result = await uploadStoreFont(vendorStoreId, file)
+                        setTheme(t => ({ ...t, customFontUrl: result.fontUrl, customFontName: result.fontName }))
+                      } catch {
+                        // keep existing font on error
+                      } finally {
+                        setFontUploading(false)
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => customFontRef.current?.click()}
+                    disabled={fontUploading}
+                    className="pixel-btn-sm bg-white text-gray-700 px-4 py-2 text-xs font-bold flex items-center gap-2"
+                  >
+                    <FolderOpen size={14} /> {fontUploading ? 'Uploading...' : theme.customFontName ? `Loaded: ${theme.customFontName}` : 'Upload Font File'}
+                  </button>
+                  {theme.customFontUrl && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><Check size={12} /> Custom font loaded</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'productDisplay' && (
+            <div className="space-y-4">
+              <div className="pixel-section-header px-4 py-2 flex items-center gap-2">
+                <ShoppingBag size={14} /> PRODUCT DISPLAY
+              </div>
+              <div className="px-4 space-y-4">
+                <p className="text-xs text-gray-500">Customize how product names and prices appear on your storefront.</p>
+                {/* Product name color */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Product Name Color</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={theme.productNameFontColor ?? '#2C2A28'}
+                      onChange={(e) => setTheme(t => ({ ...t, productNameFontColor: e.target.value }))}
+                      className="w-10 h-10 cursor-pointer pixel-border-sm"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{theme.productNameFontColor ?? '#2C2A28'}</span>
+                  </div>
+                </div>
+                {/* Price color */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Price Color</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={theme.priceFontColor ?? '#F59E0B'}
+                      onChange={(e) => setTheme(t => ({ ...t, priceFontColor: e.target.value }))}
+                      className="w-10 h-10 cursor-pointer pixel-border-sm"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{theme.priceFontColor ?? '#F59E0B'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Save button */}
-        <div className="flex-shrink-0 p-4 space-y-2" style={{ borderTop: '2px solid #1a0a3c' }}>
+        <div className="flex-shrink-0 p-4 space-y-2" style={{ borderTop: '2px solid #2C2A28' }}>
           {storeId && (
             <p className="text-xs text-gray-400 text-center">Draft auto-saved locally</p>
           )}
@@ -1007,10 +1163,10 @@ export default function CustomizePage() {
       </div>
 
       {/* ── Right: Live preview ─────────────────────────────────────────────── */}
-      <div className="flex-1 bg-gray-100 overflow-auto">
+      <div className="flex-1 bg-gray-200 overflow-auto">
         <div className="p-6 min-h-full flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Live Preview</p>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
             {store && (
               <a
                 href={`/stores/${store.id}`}

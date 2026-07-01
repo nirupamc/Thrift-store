@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen flex bg-brand-cream">
-      <aside className="w-56 bg-[#1a0a3c] text-brand-cream flex-shrink-0 flex flex-col">
+      <aside className="w-56 bg-[#2C2A28] text-brand-cream flex-shrink-0 flex flex-col">
         <div className="px-5 py-6 border-b border-white/10">
           <p className="text-brand-saffron font-bold text-sm uppercase tracking-widest flex items-center gap-2"><Settings size={18} /> ADMIN PANEL</p>
         </div>

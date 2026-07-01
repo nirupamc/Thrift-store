@@ -18,6 +18,14 @@ router.get(
   ProductController.listProducts,
 );
 
+// Vendor-scoped: must be before /:id so Express doesn't treat "my-products" as an id
+router.get(
+  '/my-products',
+  protect,
+  restrictTo(UserRole.VENDOR),
+  ProductController.listMyProducts,
+);
+
 router.get(
   '/:id',
   validate(productIdSchema),

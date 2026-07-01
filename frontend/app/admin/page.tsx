@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
 
       {/* Recent orders */}
       <div className="pixel-card overflow-hidden">
-        <div className="px-6 py-4 border-b-2 border-[#1a0a3c] flex items-center justify-between bg-white">
+        <div className="px-6 py-4 border-b-2 border-[#2C2A28] flex items-center justify-between bg-white">
           <h2 className="font-bold text-gray-800 uppercase tracking-wide text-sm">Recent Orders</h2>
           <a href="/admin/orders" className="text-sm text-brand-purple hover:underline font-semibold">View all →</a>
         </div>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import type { Store } from '@/lib/types'
+import type { Store, StoreTheme } from '@/lib/types'
 
 const AVATAR_PLACEHOLDER = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=120&q=80'
 
@@ -11,10 +11,12 @@ interface StoreCardProps {
 export function StoreCard({ store }: StoreCardProps) {
   if (!store) return null
 
+  const theme = store.storeTheme as StoreTheme | null | undefined
+  const bannerImageUrl = theme?.bannerImageUrl ?? null
   const followerCount = store.followerCount ?? store._count?.followers ?? 0
   const bannerGradient = store.bannerColor
     ? `linear-gradient(135deg, ${store.bannerColor}, ${store.bannerColor}99)`
-    : 'linear-gradient(135deg, #5B21B6, #7C3AED)'
+    : 'linear-gradient(135deg, #3B7A57, #5A9E63)'
 
   return (
     <Link
@@ -23,19 +25,30 @@ export function StoreCard({ store }: StoreCardProps) {
     >
       {/* Banner */}
       <div
-        className="h-20 w-full"
-        style={{ background: bannerGradient }}
-      />
+        className="relative h-24 w-full"
+        style={bannerImageUrl ? undefined : { background: bannerGradient }}
+      >
+        {bannerImageUrl && (
+          <Image
+            src={bannerImageUrl}
+            alt={`${store.name} banner`}
+            fill
+            className="object-cover"
+            unoptimized={bannerImageUrl.startsWith('http://localhost')}
+          />
+        )}
+      </div>
 
       <div className="px-4 pb-4 flex flex-col flex-1">
         {/* Square avatar overlapping banner */}
         <div className="-mt-8 mb-3 flex items-end gap-3">
           <div className="relative w-16 h-16 pixel-border overflow-hidden flex-shrink-0 bg-gray-200">
             <Image
-              src={store.avatar ?? AVATAR_PLACEHOLDER}
+              src={store.avatar ?? store.logo ?? AVATAR_PLACEHOLDER}
               alt={store.name}
               fill
               className="object-cover"
+              unoptimized={(store.avatar ?? store.logo ?? '').startsWith('http://localhost')}
             />
           </div>
           <div className="pb-1 min-w-0">

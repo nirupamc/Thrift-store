@@ -1,5 +1,5 @@
 import multer from 'multer';
-import { storageConfig } from '../config/storage';
+import { storageConfig, fontStorageConfig, storeBannerStorageConfig } from '../config/storage';
 
 const multerInstance = multer(storageConfig);
 
@@ -14,3 +14,9 @@ export const uploadStoreImages = multerInstance.fields([
   { name: 'avatarImage', maxCount: 1 },
   { name: 'bannerImage', maxCount: 1 },
 ]);
+
+/** Accepts a single font file (.woff2 or .ttf) under the field name "fontFile". */
+export const uploadFont = multer(fontStorageConfig).single('fontFile');
+
+/** Accepts a single banner image under the field name "bannerImage", saves to public/uploads/stores/. */
+export const uploadStoreBannerSingle = multer(storeBannerStorageConfig).single('bannerImage');

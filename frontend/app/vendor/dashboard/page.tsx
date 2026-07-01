@@ -1,14 +1,18 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/lib/authStore'
 import { fetchVendorStoreStats, fetchVendorOrders, fetchMyStore } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { animate } from 'framer-motion'
+import { useInView } from 'framer-motion'
 import { formatPrice } from '@/lib/utils'
 import type { VendorSubOrder } from '@/lib/types'
 import { BarChart2, IndianRupee, Package, Star, Users, Plus, Zap, Store, ClipboardList } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { fadeUp, staggerContainer } from '@/components/motion/variants'
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING:   'bg-yellow-100 text-yellow-800',
@@ -19,16 +23,41 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 function StatCard({
-  label, value, Icon, accent,
-}: { label: string; value: string | number; Icon: LucideIcon; accent: string }) {
+  label, Icon, accent, numericValue, format,
+}: {
+  label: string
+  Icon: LucideIcon
+  accent: string
+  numericValue: number
+  format: (n: number) => string
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const isInView = useInView(ref, { once: true })
+  const [display, setDisplay] = useState(format(0))
+
+  useEffect(() => {
+    if (!isInView) return
+    const controls = animate(0, numericValue, {
+      duration: 1.2,
+      ease: 'easeOut',
+      onUpdate: (v) => setDisplay(format(Math.round(v))),
+    })
+    return controls.stop
+  }, [isInView, numericValue, format])
+
   return (
-    <div className="pixel-card flex items-start gap-4 p-6" style={{ borderLeft: `4px solid ${accent}` }}>
+    <motion.div
+      ref={ref}
+      className="pixel-card flex items-start gap-4 p-6"
+      style={{ borderLeft: `4px solid ${accent}` }}
+      variants={fadeUp}
+    >
       <div className="flex-shrink-0"><Icon size={28} /></div>
       <div>
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 mt-0.5">{value}</p>
+        <p className="text-2xl font-bold text-gray-900 mt-0.5">{display}</p>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -41,7 +70,6 @@ const QUICK_LINKS: { href: string; label: string; Icon: LucideIcon }[] = [
 export default function VendorDashboardPage() {
   const { vendorStoreId, setVendorStoreId, user } = useAuthStore()
 
-  // Returning vendor: storeId is cleared on logout. Restore it by fetching /stores/mine.
   const { data: myStore } = useQuery({
     queryKey: ['my-store-lookup'],
     queryFn: fetchMyStore,
@@ -80,46 +108,59 @@ export default function VendorDashboardPage() {
 
   return (
     <div className="p-8 space-y-8">
-      <div>
-        <h1 className="font-heading text-3xl font-bold text-brand-purple uppercase tracking-wide flex items-center gap-2">
-          <BarChart2 size={24} /> DASHBOARD
-        </h1>
-        <p className="text-brand-saffron text-sm font-bold mt-1 uppercase tracking-widest">Your store at a glance</p>
-      </div>
+      <motion.div initial="hidden" animate="visible" variants={staggerContainer}>
+        <motion.div variants={fadeUp}>
+          <h1 className="font-heading text-3xl font-bold text-brand-purple uppercase tracking-wide flex items-center gap-2">
+            <BarChart2 size={24} /> DASHBOARD
+          </h1>
+          <p className="text-brand-saffron text-sm font-bold mt-1 uppercase tracking-widest">Your store at a glance</p>
+        </motion.div>
+      </motion.div>
 
       {/* Stats */}
       {statsLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array(4).fill(null).map((_, i) => (
-            <div key={i} className="pixel-card p-6 h-24 animate-pulse" />
+            <div key={i} className="pixel-card p-6 h-24 shimmer" />
           ))}
         </div>
       ) : stats ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Revenue"  value={formatPrice(stats.totalRevenue)}        Icon={IndianRupee} accent="#5B21B6" />
-          <StatCard label="Items Sold"     value={stats.totalItemsSold}                   Icon={Package}     accent="#EA580C" />
-          <StatCard label="Avg Rating"     value={`${stats.averageRating.toFixed(1)} ★`} Icon={Star}        accent="#BE185D" />
-          <StatCard label="Followers"      value={stats.totalFollowers}                   Icon={Users}       accent="#1D4ED8" />
-        </div>
+        <motion.div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
+        >
+          <StatCard label="Total Revenue"  numericValue={stats.totalRevenue}    format={(n) => formatPrice(n)}                     Icon={IndianRupee} accent="#3B7A57" />
+          <StatCard label="Items Sold"     numericValue={stats.totalItemsSold}  format={(n) => String(n)}                          Icon={Package}     accent="#C4683D" />
+          <StatCard label="Avg Rating"     numericValue={stats.averageRating * 10} format={(n) => `${(n / 10).toFixed(1)} ★`}     Icon={Star}        accent="#D9B04A" />
+          <StatCard label="Followers"      numericValue={stats.totalFollowers}  format={(n) => String(n)}                          Icon={Users}       accent="#5557CB" />
+        </motion.div>
       ) : null}
 
       {/* Quick links */}
-      <div className="grid grid-cols-3 gap-4">
+      <motion.div
+        className="grid grid-cols-3 gap-4"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
         {QUICK_LINKS.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="pixel-card p-5 flex flex-col items-center gap-2 hover:opacity-90 transition-opacity"
-          >
-            <item.Icon size={28} />
-            <span className="text-sm font-bold text-gray-700 uppercase tracking-wide">{item.label}</span>
-          </Link>
+          <motion.div key={item.href} variants={fadeUp}>
+            <Link
+              href={item.href}
+              className="pixel-card p-5 flex flex-col items-center gap-2 hover:opacity-90 transition-opacity"
+            >
+              <item.Icon size={28} />
+              <span className="text-sm font-bold text-gray-700 uppercase tracking-wide">{item.label}</span>
+            </Link>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Recent orders */}
       <div className="pixel-card overflow-hidden">
-        <div className="px-6 py-3 flex items-center justify-between" style={{ borderBottom: '3px solid #1a0a3c', backgroundColor: '#5B21B6' }}>
+        <div className="px-6 py-3 flex items-center justify-between" style={{ borderBottom: '3px solid #2C2A28', backgroundColor: '#3B7A57' }}>
           <h2 className="font-bold text-brand-cream uppercase tracking-widest text-sm flex items-center gap-1.5">
             <ClipboardList size={16} /> Recent Orders
           </h2>
@@ -128,7 +169,7 @@ export default function VendorDashboardPage() {
 
         {ordersLoading ? (
           <div className="p-6 space-y-3">
-            {Array(5).fill(null).map((_, i) => <div key={i} className="h-10 bg-gray-100 animate-pulse" />)}
+            {Array(5).fill(null).map((_, i) => <div key={i} className="h-10 shimmer" />)}
           </div>
         ) : (ordersData?.data ?? []).length === 0 ? (
           <div className="p-12 text-center text-gray-400 font-medium">No orders yet.</div>
@@ -144,9 +185,18 @@ export default function VendorDashboardPage() {
                   <th className="px-6 py-3 text-left">Date</th>
                 </tr>
               </thead>
-              <tbody>
+              <motion.tbody
+                initial="hidden"
+                animate="visible"
+                variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
+              >
                 {(ordersData?.data ?? []).map((sub: VendorSubOrder) => (
-                  <tr key={sub.id} className="hover:bg-brand-cream/50" style={{ borderBottom: '1px solid rgba(26,10,60,0.15)' }}>
+                  <motion.tr
+                    key={sub.id}
+                    className="hover:bg-brand-cream/50"
+                    style={{ borderBottom: '1px solid rgba(44,42,40,0.15)' }}
+                    variants={fadeUp}
+                  >
                     <td className="px-6 py-4 font-mono text-xs text-gray-500">{sub.id.slice(-8)}</td>
                     <td className="px-6 py-4">{sub.items.length} item{sub.items.length !== 1 ? 's' : ''}</td>
                     <td className="px-6 py-4 font-bold text-brand-purple">{formatPrice(sub.subtotal)}</td>
@@ -156,9 +206,9 @@ export default function VendorDashboardPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-gray-400">{new Date(sub.createdAt).toLocaleDateString('en-IN')}</td>
-                  </tr>
+                  </motion.tr>
                 ))}
-              </tbody>
+              </motion.tbody>
             </table>
           </div>
         )}

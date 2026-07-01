@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/lib/authStore'
 import { fetchCart, logoutUser } from '@/lib/api'
-import { Diamond, Shirt } from 'lucide-react'
+import { Diamond, Shirt, ShoppingCart } from 'lucide-react'
+import { useCartStore, selectCartCount } from '@/lib/cartStore'
 
 // ─── Dropdown ─────────────────────────────────────────────────────────────────
 
@@ -40,30 +42,38 @@ function Dropdown({
         </svg>
       </button>
 
-      {open && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
-          {items.map((item) =>
-            item.href ? (
-              <Link
-                key={item.label}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
-              >
-                {item.label}
-              </Link>
-            ) : (
-              <button
-                key={item.label}
-                onClick={() => { item.onClick?.(); setOpen(false) }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
-              >
-                {item.label}
-              </button>
-            )
-          )}
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -6 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50 origin-top-right"
+          >
+            {items.map((item) =>
+              item.href ? (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={`block px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <button
+                  key={item.label}
+                  onClick={() => { item.onClick?.(); setOpen(false) }}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'}`}
+                >
+                  {item.label}
+                </button>
+              )
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -73,14 +83,22 @@ function Dropdown({
 function CartIcon({ count }: { count: number }) {
   return (
     <Link href="/cart" className="relative p-1.5 text-gray-600 hover:text-brand-purple transition-colors">
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-      </svg>
-      {count > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-brand-saffron text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
-          {count > 99 ? '99+' : count}
-        </span>
-      )}
+      <ShoppingCart size={22} strokeWidth={1.8} />
+      <AnimatePresence>
+        {count > 0 && (
+          <motion.span
+            key={count}
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.4, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+            className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-brand-saffron text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
+            style={{ border: '2px solid #2C2A28', boxShadow: '1px 1px 0 #2C2A28' }}
+          >
+            {count > 99 ? '99+' : count}
+          </motion.span>
+        )}
+      </AnimatePresence>
     </Link>
   )
 }
@@ -99,19 +117,22 @@ function AuthSkeleton() {
 // ─── Role-specific auth sections ─────────────────────────────────────────────
 
 function BuyerNav({ onLogout }: { onLogout: () => void }) {
+  const setCount = useCartStore((s) => s.setCount)
   const { data: cart } = useQuery({
     queryKey: ['cart'],
     queryFn: fetchCart,
     staleTime: 30_000,
   })
-  const itemCount = cart?.itemCount ?? 0
+
+  useEffect(() => {
+    if (cart) setCount(cart.itemCount)
+  }, [cart, setCount])
 
   return (
     <div className="flex items-center gap-3">
       <Link href="/orders" className="text-gray-600 hover:text-brand-purple font-medium text-sm transition-colors">
         My Orders
       </Link>
-      <CartIcon count={itemCount} />
       <Dropdown
         label={
           <span className="w-8 h-8 rounded-full bg-brand-purple text-white flex items-center justify-center text-sm font-bold">
@@ -119,6 +140,7 @@ function BuyerNav({ onLogout }: { onLogout: () => void }) {
           </span>
         }
         items={[
+          { href: '/account',   label: 'My Account' },
           { href: '/orders',    label: 'My Orders' },
           { href: '/following', label: 'Following' },
           { label: 'Logout', onClick: onLogout, danger: true },
@@ -188,6 +210,7 @@ function MobileAuthLinks({
 }) {
   if (role === 'BUYER') return (
     <>
+      <Link href="/account"   className="block py-2 text-gray-700 font-medium" onClick={onClose}>My Account</Link>
       <Link href="/orders"    className="block py-2 text-gray-700 font-medium" onClick={onClose}>My Orders</Link>
       <Link href="/cart"      className="block py-2 text-gray-700 font-medium" onClick={onClose}>Cart</Link>
       <Link href="/following" className="block py-2 text-gray-700 font-medium" onClick={onClose}>Following</Link>
@@ -228,6 +251,8 @@ export function Navbar() {
   useEffect(() => { setHydrated(true) }, [])
 
   const { isAuthenticated, user, refreshToken, logout } = useAuthStore()
+  const cartCount = useCartStore(selectCartCount)
+  const resetCart = useCartStore((s) => s.reset)
   const router = useRouter()
 
   async function handleLogout() {
@@ -236,6 +261,7 @@ export function Navbar() {
     } catch {
       // best-effort — clear state regardless
     }
+    resetCart()
     logout()
     router.push('/')
   }
@@ -253,7 +279,7 @@ export function Navbar() {
   return (
     <>
       {/* Announcement marquee bar */}
-      <div className="bg-[#1a0a3c] overflow-hidden py-1.5">
+      <div className="bg-[#2C2A28] overflow-hidden py-1.5">
         <style jsx>{`
           @keyframes scroll-marquee {
             0% { transform: translateX(0); }
@@ -277,7 +303,7 @@ export function Navbar() {
 
       <nav
         className="bg-brand-cream sticky top-0 z-50"
-        style={{ borderBottom: '3px solid #1a0a3c' }}
+        style={{ borderBottom: '3px solid #2C2A28' }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -307,6 +333,11 @@ export function Navbar() {
                 onKeyDown={handleSearchKeyDown}
                 className="pixel-input px-3 py-1.5 text-sm w-40 lg:w-56"
               />
+            </div>
+
+            {/* Global cart icon — always visible */}
+            <div className="hidden md:block">
+              <CartIcon count={cartCount} />
             </div>
 
             {/* Desktop auth section */}
@@ -348,30 +379,49 @@ export function Navbar() {
         </div>
 
         {/* Mobile menu */}
-        {mobileOpen && (
-          <div className="md:hidden border-t border-[#1a0a3c] bg-brand-cream px-4 pb-4 pt-2 space-y-1">
-            <Link href="/products" className="block py-2 text-gray-700 font-medium" onClick={() => setMobileOpen(false)}>
-              Browse
-            </Link>
-            <Link href="/stores" className="block py-2 text-gray-700 font-medium" onClick={() => setMobileOpen(false)}>
-              Stores
-            </Link>
-            <div className="border-t border-gray-100 pt-2 mt-2">
-              {!hydrated ? (
-                <div className="py-2 space-y-2">
-                  <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
-                  <div className="h-4 w-28 bg-gray-100 rounded animate-pulse" />
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+              className="md:hidden border-t border-[#2C2A28] bg-brand-cream px-4 pb-4 pt-2 space-y-1 overflow-hidden"
+            >
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
+              >
+                {[
+                  <Link key="browse" href="/products" className="block py-2 text-gray-700 font-medium" onClick={() => setMobileOpen(false)}>Browse</Link>,
+                  <Link key="stores" href="/stores" className="block py-2 text-gray-700 font-medium" onClick={() => setMobileOpen(false)}>Stores</Link>,
+                ].map((el, i) => (
+                  <motion.div
+                    key={i}
+                    variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0, transition: { duration: 0.2 } } }}
+                  >
+                    {el}
+                  </motion.div>
+                ))}
+                <div className="border-t border-gray-100 pt-2 mt-2">
+                  {!hydrated ? (
+                    <div className="py-2 space-y-2">
+                      <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                      <div className="h-4 w-28 bg-gray-100 rounded animate-pulse" />
+                    </div>
+                  ) : (
+                    <MobileAuthLinks
+                      role={isAuthenticated ? role : undefined}
+                      onLogout={handleLogout}
+                      onClose={() => setMobileOpen(false)}
+                    />
+                  )}
                 </div>
-              ) : (
-                <MobileAuthLinks
-                  role={isAuthenticated ? role : undefined}
-                  onLogout={handleLogout}
-                  onClose={() => setMobileOpen(false)}
-                />
-              )}
-            </div>
-          </div>
-        )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
     </>
   )

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/authStore'
-import { createDrop, fetchProducts } from '@/lib/api'
+import { createDrop, fetchVendorProducts } from '@/lib/api'
 import type { Product } from '@/lib/types'
 import { Camera, Zap } from 'lucide-react'
 
@@ -19,9 +19,8 @@ export default function VendorDropsPage() {
   const [success,      setSuccess]      = useState('')
 
   const { data: productsData } = useQuery({
-    queryKey: ['vendor-products-drop', vendorStoreId],
-    queryFn:  () => fetchProducts({ storeId: vendorStoreId!, limit: 100 }),
-    enabled:  !!vendorStoreId,
+    queryKey: ['vendor-products-drop'],
+    queryFn:  () => fetchVendorProducts({ limit: 100 }),
   })
 
   const mutation = useMutation({

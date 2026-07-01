@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { RarityBadge, ConditionBadge } from './ui/Badge'
+import { motion, AnimatePresence } from 'framer-motion'
+import { RarityBadge } from './ui/Badge'
 import { formatPrice } from '@/lib/utils'
-import { addToCart } from '@/lib/api'
 import type { Product } from '@/lib/types'
-import { Heart, Check } from 'lucide-react'
+import { Heart } from 'lucide-react'
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1523381294911-8d3cead13475?w=400&q=80'
 
@@ -18,11 +17,11 @@ interface ProductCardProps {
 
 function getRarityColor(rarity?: string): string {
   switch (rarity) {
-    case 'VINTAGE_RARE': return '#7C3AED'
-    case 'RARE':         return '#DB2777'
-    case 'UNCOMMON':     return '#0891B2'
-    case 'COMMON':       return '#6B7280'
-    default:             return '#6B7280'
+    case 'VINTAGE_RARE': return '#5557CB'
+    case 'RARE':         return '#D9B04A'
+    case 'UNCOMMON':     return '#C4683D'
+    case 'COMMON':       return '#9CA3AF'
+    default:             return '#9CA3AF'
   }
 }
 
@@ -30,8 +29,6 @@ export function ProductCard({ product }: ProductCardProps) {
   if (!product) return null
 
   const [liked, setLiked] = useState(false)
-  const [added, setAdded] = useState(false)
-  const queryClient = useQueryClient()
 
   const image = product.images?.[0] ?? PLACEHOLDER
   const discount = product.originalPrice && product.originalPrice > product.sellingPrice
@@ -41,26 +38,19 @@ export function ProductCard({ product }: ProductCardProps) {
   const rarityColor = getRarityColor(product.rarity)
   const productHref = product.slug ? `/products/${product.slug}` : '#'
 
-  const cartMutation = useMutation({
-    mutationFn: () => addToCart(product.id),
-    onSuccess: () => {
-      setAdded(true)
-      setTimeout(() => setAdded(false), 2000)
-    },
-    onError: () => {
-      // reset silently — no error display in card
-    },
-  })
-
   return (
-    <div className="pixel-card overflow-hidden group flex flex-col">
+    <motion.div
+      className="pixel-card overflow-hidden group flex flex-col"
+      whileHover={{ y: -4 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+    >
       {/* Image area */}
       <Link href={productHref} className="relative block aspect-[3/4] overflow-hidden bg-gray-100 flex-shrink-0">
         <Image
           src={image}
           alt={product.title}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className="object-cover group-hover:scale-[1.03] transition-transform duration-300"
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         />
 
@@ -71,25 +61,31 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* Rarity game-label badge top-left */}
+        {/* Rarity badge — springs in on mount */}
         {product.rarity && (
-          <span
+          <motion.span
             className="absolute top-2 left-2 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 text-white"
             style={{ background: rarityColor }}
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.1 }}
           >
             {product.rarity.replace('_', ' ')}
-          </span>
+          </motion.span>
         )}
 
-        {/* Heart icon top-right */}
-        <button
+        {/* Heart button — spring bounce on toggle */}
+        <motion.button
           onClick={(e) => { e.preventDefault(); setLiked(!liked) }}
           className="absolute top-2 right-2 w-7 h-7 bg-white/90 flex items-center justify-center text-sm pixel-border-sm"
+          whileTap={{ scale: 1.4 }}
+          animate={liked ? { scale: [1, 1.35, 1] } : {}}
+          transition={{ type: 'spring', stiffness: 400, damping: 15 }}
         >
           <Heart size={14} className={liked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
-        </button>
+        </motion.button>
 
-        {/* Discount badge bottom-left */}
+        {/* Discount badge */}
         {discount && product.isAvailable && (
           <div className="absolute bottom-2 left-2 bg-brand-saffron text-white text-xs font-bold px-2 py-0.5">
             -{discount}%
@@ -109,9 +105,9 @@ export function ProductCard({ product }: ProductCardProps) {
         </Link>
 
         <div className="flex items-baseline gap-2">
-          <span className="font-black text-brand-saffron">{formatPrice(product.sellingPrice)}</span>
+          <span className="font-mono text-lg tracking-wide text-brand-saffron">{formatPrice(product.sellingPrice)}</span>
           {product.originalPrice && product.originalPrice > product.sellingPrice && (
-            <span className="text-xs text-gray-400 line-through">
+            <span className="font-mono text-sm text-gray-400 line-through">
               {formatPrice(product.originalPrice)}
             </span>
           )}
@@ -121,21 +117,21 @@ export function ProductCard({ product }: ProductCardProps) {
           <p className="text-xs text-gray-400">{product.brand}</p>
         )}
 
-        {/* Add to Cart button */}
-        <button
-          onClick={() => cartMutation.mutate()}
-          disabled={!product.isAvailable || cartMutation.isPending || added}
-          className="pixel-btn bg-brand-purple text-white text-xs font-bold py-2 mt-auto w-full disabled:opacity-70"
+        {/* VIEW ITEM button */}
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          className="mt-auto"
         >
-          {!product.isAvailable
-            ? 'SOLD'
-            : cartMutation.isPending
-            ? 'Adding…'
-            : added
-            ? <><Check size={14} className="inline mr-1" /> Added!</>
-            : 'ADD TO CART'}
-        </button>
+          <Link
+            href={`/products/${product.slug}`}
+            className="pixel-btn bg-brand-purple text-white text-xs font-bold py-2 text-center block"
+            onClick={(e) => e.stopPropagation()}
+          >
+            VIEW ITEM
+          </Link>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   )
 }

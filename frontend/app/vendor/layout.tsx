@@ -31,7 +31,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   return (
     <div className="min-h-screen flex bg-brand-cream">
       {/* Sidebar */}
-      <aside className="w-56 bg-[#2D1B69] text-white flex-shrink-0 flex flex-col" style={{ borderRight: '3px solid #1a0a3c' }}>
+      <aside className="w-56 bg-[#2C2A28] text-white flex-shrink-0 flex flex-col" style={{ borderRight: '3px solid #2C2A28' }}>
         <div className="px-5 py-6" style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
           <p className="text-xs uppercase tracking-widest text-brand-saffron font-bold mb-1">VENDOR</p>
           <p className="font-heading font-bold text-lg leading-tight truncate text-brand-cream">

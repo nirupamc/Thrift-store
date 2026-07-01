@@ -2,11 +2,13 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchCart, removeFromCart } from '@/lib/api'
 import { formatPrice } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
+import { useCartStore } from '@/lib/cartStore'
 import { ShoppingBasket, ChevronRight } from 'lucide-react'
 
 const PLATFORM_FEE_PERCENT = 10
@@ -14,6 +16,8 @@ const PLATFORM_FEE_PERCENT = 10
 export default function CartPage() {
   const { isAuthenticated, hydrated } = useRequireAuth()
   const queryClient = useQueryClient()
+  const setCartCount = useCartStore((s) => s.setCount)
+  const decrementCart = useCartStore((s) => s.decrement)
 
   const { data: cart, isLoading } = useQuery({
     queryKey: ['cart'],
@@ -21,9 +25,16 @@ export default function CartPage() {
     enabled: isAuthenticated,
   })
 
+  useEffect(() => {
+    if (cart) setCartCount(cart.itemCount)
+  }, [cart, setCartCount])
+
   const removeMutation = useMutation({
     mutationFn: (productId: string) => removeFromCart(productId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
+    onSuccess: () => {
+      decrementCart()
+      queryClient.invalidateQueries({ queryKey: ['cart'] })
+    },
   })
 
   if (!hydrated || (!isAuthenticated && hydrated)) {
@@ -61,8 +72,6 @@ export default function CartPage() {
       </div>
     )
   }
-
-  const platformFee = Math.round(cart.total * (PLATFORM_FEE_PERCENT / 100) * 100) / 100
 
   return (
     <div className="bg-brand-cream min-h-screen">

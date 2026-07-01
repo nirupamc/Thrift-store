@@ -3,13 +3,16 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import { fetchProduct, fetchProductReviews, addToCart, followStore, unfollowStore } from '@/lib/api'
+import { useCartStore } from '@/lib/cartStore'
 import { RarityBadge, ConditionBadge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatPrice, formatCondition } from '@/lib/utils'
 import { Search, Store, Package, ClipboardList, Ruler, Check } from 'lucide-react'
+import { slideInLeft, staggerContainer } from '@/components/motion/variants'
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1523381294911-8d3cead13475?w=800&q=80'
 
@@ -25,6 +28,8 @@ function StarRating({ rating }: { rating: number }) {
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>()
+  const router = useRouter()
+  const incrementCart = useCartStore((s) => s.increment)
   const [selectedImage, setSelectedImage] = useState(0)
   const [zoomOpen, setZoomOpen] = useState(false)
   const [cartAdded, setCartAdded] = useState(false)
@@ -46,6 +51,7 @@ export default function ProductDetailPage() {
   const cartMutation = useMutation({
     mutationFn: () => addToCart(product!.id),
     onSuccess: () => {
+      incrementCart()
       setCartAdded(true)
       setCartError('')
       setTimeout(() => setCartAdded(false), 2000)
@@ -54,6 +60,18 @@ export default function ProductDetailPage() {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         'Please log in to add items to your cart.'
+      setCartError(msg)
+      setTimeout(() => setCartError(''), 4000)
+    },
+  })
+
+  const buyNowMutation = useMutation({
+    mutationFn: () => addToCart(product!.id),
+    onSuccess: () => { incrementCart(); router.push('/checkout') },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Please log in to continue.'
       setCartError(msg)
       setTimeout(() => setCartError(''), 4000)
     },
@@ -107,20 +125,31 @@ export default function ProductDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Image gallery */}
         <div>
-          {/* Main image */}
+          {/* Main image — crossfade on thumbnail change */}
           <div
             className="relative aspect-square pixel-border overflow-hidden bg-gray-100 cursor-zoom-in"
             onClick={() => setZoomOpen(true)}
           >
-            <Image
-              src={images[selectedImage]}
-              alt={product.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              priority
-            />
-            <div className="absolute bottom-3 right-3 bg-brand-purple/80 text-white text-xs px-2 py-1 flex items-center gap-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedImage}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="absolute inset-0"
+              >
+                <Image
+                  src={images[selectedImage]}
+                  alt={product.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                />
+              </motion.div>
+            </AnimatePresence>
+            <div className="absolute bottom-3 right-3 bg-brand-purple/80 text-white text-xs px-2 py-1 flex items-center gap-1 z-10">
               <Search size={12} /> Click to zoom
             </div>
           </div>
@@ -159,31 +188,57 @@ export default function ProductDetailPage() {
 
           {/* Price */}
           <div className="flex items-baseline gap-3">
-            <span className="text-4xl font-bold text-brand-saffron">
+            <span className="font-mono text-4xl tracking-wide text-brand-saffron">
               {formatPrice(product.sellingPrice)}
             </span>
             {product.originalPrice && product.originalPrice > product.sellingPrice && (
               <>
-                <span className="text-xl text-gray-400 line-through">
+                <span className="font-mono text-xl tracking-wide text-gray-400 line-through">
                   {formatPrice(product.originalPrice)}
                 </span>
-                <span className="text-sm text-brand-saffron font-bold">
+                <span className="font-mono text-base text-brand-saffron font-bold">
                   {Math.round((1 - product.sellingPrice / product.originalPrice) * 100)}% off
                 </span>
               </>
             )}
           </div>
 
-          {/* Add to cart */}
+          {/* Add to cart / Buy now */}
           {product.isAvailable ? (
             <div className="space-y-2">
-              <button
-                onClick={() => cartMutation.mutate()}
-                disabled={cartMutation.isPending || cartAdded}
-                className="pixel-btn bg-brand-saffron text-white font-bold py-4 text-lg w-full disabled:opacity-70"
-              >
-                {cartAdded ? <><Check size={16} className="inline mr-1" /> Added to Cart!</> : cartMutation.isPending ? 'Adding...' : 'Add to Cart'}
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => cartMutation.mutate()}
+                  disabled={cartMutation.isPending || cartAdded}
+                  className="pixel-btn bg-brand-saffron text-white font-bold py-4 text-base disabled:opacity-70 overflow-hidden"
+                >
+                  <AnimatePresence mode="wait">
+                    {cartAdded ? (
+                      <motion.span
+                        key="added"
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.5, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+                        className="flex items-center gap-1 justify-center"
+                      >
+                        <Check size={16} className="inline" /> Added!
+                      </motion.span>
+                    ) : (
+                      <motion.span key="cta" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }}>
+                        {cartMutation.isPending ? 'Adding...' : 'ADD TO CART'}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+                <button
+                  onClick={() => buyNowMutation.mutate()}
+                  disabled={buyNowMutation.isPending}
+                  className="pixel-btn bg-brand-purple text-white font-bold py-4 text-base disabled:opacity-70"
+                >
+                  {buyNowMutation.isPending ? 'Loading...' : 'BUY NOW →'}
+                </button>
+              </div>
               {cartError && (
                 <p className="text-red-600 text-sm text-center">{cartError}</p>
               )}
@@ -202,7 +257,12 @@ export default function ProductDetailPage() {
             <div className="pixel-section-header -mx-5 -mt-5 mb-4 px-5 py-2 flex items-center gap-2">
               <Package size={16} /> DETAILS
             </div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <motion.div
+              className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm"
+              initial="hidden"
+              animate="visible"
+              variants={staggerContainer}
+            >
               {[
                 ['Brand',     product.brand],
                 ['Size',      product.size],
@@ -211,10 +271,10 @@ export default function ProductDetailPage() {
                 ['Gender',    product.gender],
                 ['City',      product.city],
               ].filter(([, v]) => v).map(([label, value]) => (
-                <div key={label}>
+                <motion.div key={label} variants={slideInLeft}>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
                   <p className="font-medium text-gray-800 mt-0.5">{value}</p>
-                </div>
+                </motion.div>
               ))}
 
               {product.color?.length > 0 && (
@@ -238,7 +298,7 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </motion.div>
           </div>
 
           {/* Description */}

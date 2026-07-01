@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/authStore'
-import { fetchProducts, deleteVendorProduct } from '@/lib/api'
+import { fetchVendorProducts, deleteVendorProduct } from '@/lib/api'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatPrice, formatCondition } from '@/lib/utils'
@@ -18,9 +18,8 @@ export default function VendorProductsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['vendor-products', vendorStoreId, page],
-    queryFn:  () => fetchProducts({ storeId: vendorStoreId!, page, limit: 20 }),
-    enabled:  !!vendorStoreId,
+    queryKey: ['vendor-products', page],
+    queryFn:  () => fetchVendorProducts({ page, limit: 20 }),
   })
 
   const deleteMutation = useMutation({
@@ -111,7 +110,7 @@ export default function VendorProductsPage() {
                         {product.brand && <p className="text-xs text-gray-400 mt-0.5">{product.brand}</p>}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="bg-brand-saffron text-white text-xs font-bold px-2 py-1">
+                        <span className="bg-brand-saffron text-white font-mono text-sm tracking-wide font-bold px-2 py-1">
                           {formatPrice(product.sellingPrice)}
                         </span>
                       </td>

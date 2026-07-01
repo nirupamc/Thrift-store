@@ -104,7 +104,7 @@ export const updateProductSchema = z.object({
       status:        z.enum(updatableStatuses).optional(),
     })
     .refine((d) => Object.keys(d).length > 0, { message: 'At least one field must be provided' }),
-  params: z.object({ id: z.string().cuid('Invalid product ID') }),
+  params: z.object({ id: z.string().min(1) }),
 });
 
 // ─── List / filter ────────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ export const listProductsSchema = z.object({
 // ─── Misc ─────────────────────────────────────────────────────────────────────
 
 export const productIdSchema = z.object({
-  params: z.object({ id: z.string().cuid('Invalid product ID') }),
+  params: z.object({ id: z.string().min(1) }),
 });
 
 export const storeProductsSchema = z.object({

@@ -409,7 +409,7 @@ export function ProductForm({ initial, existingProduct, onSubmit, loading, submi
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-[#1a0a3c] bg-brand-cream py-8 text-center text-gray-500 hover:border-brand-purple hover:text-brand-purple transition-colors"
+                className="w-full border-2 border-dashed border-[#2C2A28] bg-brand-cream py-8 text-center text-gray-500 hover:border-brand-purple hover:text-brand-purple transition-colors"
               >
                 <Camera size={32} className="mx-auto mb-1 text-gray-400" />
                 <p className="text-sm font-bold uppercase tracking-wide">DROP YOUR FITS HERE</p>

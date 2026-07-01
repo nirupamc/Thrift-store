@@ -3,10 +3,12 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
+import { motion } from 'framer-motion'
 import { fetchProducts } from '@/lib/api'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductCardSkeleton } from '@/components/ui/Skeleton'
 import { Diamond, ShoppingBasket } from 'lucide-react'
+import { fadeUp } from '@/components/motion/variants'
 
 const CONDITIONS  = ['NEW_WITH_TAGS', 'LIKE_NEW', 'GOOD', 'FAIR']
 const RARITIES    = ['VINTAGE_RARE', 'RARE', 'UNCOMMON', 'COMMON']
@@ -269,7 +271,15 @@ function ProductsContent() {
               {isLoading
                 ? Array.from({ length: 20 }).map((_, i) => <ProductCardSkeleton key={i} />)
                 : data?.data.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    <motion.div
+                      key={product.id}
+                      initial="hidden"
+                      whileInView="visible"
+                      viewport={{ once: true, amount: 0.1 }}
+                      variants={fadeUp}
+                    >
+                      <ProductCard product={product} />
+                    </motion.div>
                   ))}
             </div>
 

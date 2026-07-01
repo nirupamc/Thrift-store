@@ -198,7 +198,7 @@ export default function VendorStorePage() {
       {/* Banner preview */}
       <div
         className="w-full h-28 flex items-end pb-4 px-5 transition-colors"
-        style={{ backgroundColor: bannerColor, border: '3px solid #1a0a3c', boxShadow: '4px 4px 0 #1a0a3c' }}
+        style={{ backgroundColor: bannerColor, border: '3px solid #2C2A28', boxShadow: '4px 4px 0 #2C2A28' }}
       >
         <div className="flex items-center gap-3">
           {(avatarPreview ?? existingStore?.logo) ? (

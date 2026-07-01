@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type {
   ApiResponse,
   PaginatedResponse,
@@ -27,13 +27,175 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token')
-    if (token) config.headers.Authorization = `Bearer ${token}`
+// ─── Token refresh machinery ──────────────────────────────────────────────────
+
+let isRefreshing = false
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = []
+
+function processQueue(error: unknown, token: string | null = null): void {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error)
+    else resolve(token as string)
+  })
+  failedQueue = []
+}
+
+function decodeJwtExp(token: string): number | null {
+  try {
+    return (JSON.parse(atob(token.split('.')[1])) as { exp?: number }).exp ?? null
+  } catch {
+    return null
   }
+}
+
+function isTokenExpiringSoon(token: string, withinSeconds: number): boolean {
+  const exp = decodeJwtExp(token)
+  return exp !== null && exp * 1000 - Date.now() < withinSeconds * 1000
+}
+
+function getStoredRefreshToken(): string | null {
+  try {
+    return (JSON.parse(localStorage.getItem('thrift-auth') ?? '{}') as { state?: { refreshToken?: string } })?.state?.refreshToken ?? null
+  } catch {
+    return null
+  }
+}
+
+async function doRefresh(): Promise<string> {
+  const refreshToken = getStoredRefreshToken()
+  if (!refreshToken) throw new Error('No refresh token')
+
+  // Use a bare axios instance so this call doesn't trigger our own interceptors
+  const res = await axios.post<{ data: { tokens: { accessToken: string; refreshToken: string } } }>(
+    'http://localhost:5000/api/v1/auth/refresh',
+    { refreshToken },
+  )
+  const { accessToken, refreshToken: newRefreshToken } = res.data.data.tokens
+
+  // Persist new access token to localStorage (read by request interceptor)
+  localStorage.setItem('access_token', accessToken)
+
+  // Persist new refresh token into Zustand persist storage
+  try {
+    const raw = localStorage.getItem('thrift-auth')
+    if (raw) {
+      const s = JSON.parse(raw) as { state?: { accessToken?: string; refreshToken?: string } }
+      if (s?.state) {
+        s.state.accessToken = accessToken
+        s.state.refreshToken = newRefreshToken
+        localStorage.setItem('thrift-auth', JSON.stringify(s))
+      }
+    }
+  } catch {}
+
+  return accessToken
+}
+
+function doLogout(): void {
+  localStorage.removeItem('access_token')
+  try {
+    const raw = localStorage.getItem('thrift-auth')
+    if (raw) {
+      const s = JSON.parse(raw) as { state?: Record<string, unknown> }
+      if (s?.state) {
+        Object.assign(s.state, {
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          user: null,
+          vendorStoreId: null,
+        })
+        localStorage.setItem('thrift-auth', JSON.stringify(s))
+      }
+    }
+  } catch {}
+  if (typeof window !== 'undefined') {
+    window.location.href = '/auth/login?reason=session_expired'
+  }
+}
+
+// ─── Request interceptor: attach token + proactive refresh ────────────────────
+
+api.interceptors.request.use(async (config) => {
+  if (typeof window === 'undefined') return config
+
+  const token = localStorage.getItem('access_token')
+  if (!token) return config
+
+  // A refresh is already underway — queue this request until the new token is ready
+  if (isRefreshing) {
+    const newToken = await new Promise<string>((resolve, reject) => {
+      failedQueue.push({ resolve, reject })
+    })
+    config.headers.Authorization = `Bearer ${newToken}`
+    return config
+  }
+
+  // Proactively refresh if the token expires within 60 seconds
+  if (isTokenExpiringSoon(token, 60)) {
+    isRefreshing = true
+    try {
+      const newToken = await doRefresh()
+      processQueue(null, newToken)
+      config.headers.Authorization = `Bearer ${newToken}`
+      return config
+    } catch (err) {
+      processQueue(err, null)
+      doLogout()
+      return Promise.reject(err)
+    } finally {
+      isRefreshing = false
+    }
+  }
+
+  config.headers.Authorization = `Bearer ${token}`
   return config
 })
+
+// ─── Response interceptor: queue-based 401 recovery ──────────────────────────
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
+
+    // Only intercept 401s on non-auth endpoints that haven't already been retried
+    if (
+      !originalRequest ||
+      error.response?.status !== 401 ||
+      originalRequest._retry ||
+      originalRequest.url?.includes('/auth/')
+    ) {
+      return Promise.reject(error)
+    }
+
+    // A refresh is already in flight — queue this request to retry once it lands
+    if (isRefreshing) {
+      return new Promise<string>((resolve, reject) => {
+        failedQueue.push({ resolve, reject })
+      }).then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`
+        return api(originalRequest)
+      })
+    }
+
+    originalRequest._retry = true
+    isRefreshing = true
+
+    try {
+      const newToken = await doRefresh()
+      processQueue(null, newToken)
+      originalRequest.headers.Authorization = `Bearer ${newToken}`
+      return api(originalRequest)
+    } catch (refreshError) {
+      processQueue(refreshError, null)
+      doLogout()
+      return Promise.reject(refreshError)
+    } finally {
+      isRefreshing = false
+    }
+  },
+)
 
 // ─── Types for paginated backend response ─────────────────────────────────────
 
@@ -275,6 +437,13 @@ export async function fetchVendorStoreStats(storeId: string): Promise<VendorStat
 
 // ─── Vendor: Products ─────────────────────────────────────────────────────────
 
+export async function fetchVendorProducts(
+  params: { page?: number; limit?: number } = {},
+): Promise<PaginatedResponse<Product>> {
+  const res = await api.get<BackendPaginatedResponse<Product>>('/products/my-products', { params })
+  return { data: res.data.data, meta: res.data.meta }
+}
+
 export async function createVendorProduct(formData: FormData): Promise<Product> {
   const res = await api.post<ApiResponse<Product>>('/products', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -372,6 +541,45 @@ export async function fetchAdminPayouts(
 
 export async function markPayoutPaid(payoutId: string): Promise<AdminPayout> {
   const res = await api.patch<ApiResponse<AdminPayout>>(`/admin/payouts/${payoutId}/mark-paid`)
+  return res.data.data
+}
+
+// ─── Store: Banner image (immediate upload) ───────────────────────────────────
+
+export async function uploadStoreBannerImage(storeId: string, imageFile: File): Promise<string> {
+  const fd = new FormData()
+  fd.append('bannerImage', imageFile)
+  const res = await api.post<ApiResponse<{ url: string }>>(`/stores/${storeId}/upload-image`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data.data.url
+}
+
+// ─── Store: Custom Font ───────────────────────────────────────────────────────
+
+export async function uploadStoreFont(storeId: string, fontFile: File): Promise<{ fontUrl: string; fontName: string; storeTheme: StoreTheme }> {
+  const fd = new FormData()
+  fd.append('fontFile', fontFile)
+  const res = await api.patch<ApiResponse<{ id: string; storeTheme: StoreTheme }>>(`/stores/${storeId}/font`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  const theme = res.data.data.storeTheme as StoreTheme
+  return {
+    fontUrl: theme.customFontUrl ?? '',
+    fontName: theme.customFontName ?? '',
+    storeTheme: theme,
+  }
+}
+
+// ─── Buyer: Profile ───────────────────────────────────────────────────────────
+
+export async function getBuyerProfile(): Promise<{ id: string; email: string; phone: string; role: string }> {
+  const res = await api.get<ApiResponse<{ id: string; email: string; phone: string; role: string }>>('/buyers/me')
+  return res.data.data
+}
+
+export async function updateBuyerProfile(data: { phone?: string }): Promise<{ id: string; email: string; phone: string }> {
+  const res = await api.patch<ApiResponse<{ id: string; email: string; phone: string }>>('/buyers/me', data)
   return res.data.data
 }
 

@@ -71,6 +71,14 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
   sendSuccess(res, null, 'Product deleted');
 });
 
+export const listMyProducts = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new UnauthorizedError();
+  const page  = Math.max(1, Number(req.query.page  ?? 1));
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit ?? 20)));
+  const { data, total } = await ProductService.listVendorProducts(req.user.sub, { page, limit });
+  sendPaginated(res, data, total, page, limit);
+});
+
 export const getStoreProducts = asyncHandler(async (req: Request, res: Response) => {
   const page = Number(req.query.page ?? 1);
   const limit = Number(req.query.limit ?? 20);

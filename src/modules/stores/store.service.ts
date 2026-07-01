@@ -81,8 +81,9 @@ export async function listStores(query: ListStoresQuery) {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, name: true, slug: true, description: true,
-        logo: true, city: true, state: true,
+        logo: true, banner: true, city: true, state: true,
         styleTags: true, bannerColor: true, dropSchedule: true,
+        storeTheme: true,
         createdAt: true,
         vendor: {
           select: {
@@ -164,17 +165,16 @@ export async function updateStore(
   if (!store) throw new NotFoundError('Store');
   if (store.vendorId !== vendor.id) throw new ForbiddenError('You do not own this store');
 
-  const hasChanges = Object.keys(input).length > 0 || avatarUrl !== undefined;
+  const hasChanges = Object.keys(input).length > 0 || avatarUrl !== undefined || bannerImageUrl !== undefined;
   if (!hasChanges) {
     throw new AppError('No changes provided', 400, 'NO_CHANGES');
   }
 
   // Merge bannerImageUrl into storeTheme if an image was uploaded
-  const mergedTheme = input.storeTheme
-    ? bannerImageUrl
-      ? { ...input.storeTheme, bannerImageUrl }
-      : input.storeTheme
-    : undefined;
+  const mergedTheme: Record<string, unknown> | undefined =
+    bannerImageUrl
+      ? { ...(input.storeTheme ?? {}), bannerImageUrl }
+      : input.storeTheme ?? undefined;
 
   return prisma.store.update({
     where: { id: storeId },
@@ -271,6 +271,59 @@ export async function unfollowStore(userId: string, storeId: string) {
 
   await prisma.storeFollower.delete({
     where: { storeId_buyerId: { storeId, buyerId: buyer.id } },
+  });
+}
+
+// ─── Save banner image URL ────────────────────────────────────────────────────
+
+export async function saveBannerImage(storeId: string, userId: string, imageUrl: string) {
+  const vendor = await prisma.vendor.findUnique({ where: { userId }, select: { id: true } });
+  if (!vendor) throw new NotFoundError('Vendor profile');
+
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { id: true, vendorId: true, storeTheme: true },
+  });
+  if (!store) throw new NotFoundError('Store');
+  if (store.vendorId !== vendor.id) throw new ForbiddenError('You do not own this store');
+
+  const existingTheme = (store.storeTheme as Record<string, unknown>) ?? {};
+  return prisma.store.update({
+    where: { id: storeId },
+    data: {
+      banner: imageUrl,
+      storeTheme: {
+        ...existingTheme,
+        bannerImageUrl: imageUrl,
+        bannerType: 'image',
+      } as Prisma.InputJsonValue,
+    },
+  });
+}
+
+// ─── Upload custom font ───────────────────────────────────────────────────────
+
+export async function uploadStoreFont(storeId: string, userId: string, fontUrl: string, fontName: string) {
+  const vendor = await prisma.vendor.findUnique({ where: { userId }, select: { id: true } });
+  if (!vendor) throw new NotFoundError('Vendor profile');
+
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { id: true, vendorId: true, storeTheme: true },
+  });
+  if (!store) throw new NotFoundError('Store');
+  if (store.vendorId !== vendor.id) throw new ForbiddenError('You do not own this store');
+
+  const existingTheme = (store.storeTheme as Record<string, unknown>) ?? {};
+  return prisma.store.update({
+    where: { id: storeId },
+    data: {
+      storeTheme: {
+        ...existingTheme,
+        customFontUrl: fontUrl,
+        customFontName: fontName,
+      } as Prisma.InputJsonValue,
+    },
   });
 }
 

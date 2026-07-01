@@ -45,6 +45,17 @@ const storeThemeSchema = z.object({
   showReviews:             z.boolean().optional(),
   showDrops:               z.boolean().optional(),
   showAbout:               z.boolean().optional(),
+  // Font colors (applied to storefront headings/body)
+  headingFontColor:        z.string().max(30).optional(),
+  bodyFontColor:           z.string().max(30).optional(),
+  // Product display overrides
+  productNameFont:         z.string().max(100).optional(),
+  productNameFontColor:    z.string().max(30).optional(),
+  priceFont:               z.string().max(100).optional(),
+  priceFontColor:          z.string().max(30).optional(),
+  // Custom font
+  customFontUrl:           z.string().url().optional().nullable(),
+  customFontName:          z.string().max(100).optional().nullable(),
 });
 
 export type StoreThemeInput = z.infer<typeof storeThemeSchema>;

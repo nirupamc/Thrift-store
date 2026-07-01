@@ -3,10 +3,12 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Suspense } from 'react'
+import { motion } from 'framer-motion'
 import { fetchStores } from '@/lib/api'
 import { StoreCard } from '@/components/StoreCard'
 import { StoreCardSkeleton } from '@/components/ui/Skeleton'
 import { Store } from 'lucide-react'
+import { fadeUp } from '@/components/motion/variants'
 
 const STYLE_OPTIONS = [
   'Vintage', 'Streetwear', 'Y2K', 'Cottagecore', 'Dark Academia',
@@ -105,7 +107,17 @@ function StoresContent() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading
           ? Array.from({ length: 18 }).map((_, i) => <StoreCardSkeleton key={i} />)
-          : data?.data.map((store) => <StoreCard key={store.id} store={store} />)}
+          : data?.data.map((store) => (
+              <motion.div
+                key={store.id}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.1 }}
+                variants={fadeUp}
+              >
+                <StoreCard store={store} />
+              </motion.div>
+            ))}
       </div>
 
       {!isLoading && data?.data.length === 0 && (
@@ -146,8 +158,8 @@ export default function StoresPage() {
   return (
     <div className="min-h-screen bg-brand-cream">
       {/* Purple banner header */}
-      <div className="bg-brand-purple text-brand-cream py-10 px-4 text-center">
-        <h1 className="font-heading text-3xl md:text-4xl font-bold uppercase tracking-widest">
+      <div className="bg-brand-purple text-brand-cream pt-16 pb-10 px-4 text-center">
+        <h1 className="font-heading text-3xl md:text-4xl font-bold uppercase tracking-widest leading-tight">
           DISCOVER STORES
         </h1>
         <div className="w-24 h-1 bg-brand-saffron mx-auto mt-3 mb-2" />

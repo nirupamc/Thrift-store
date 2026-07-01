@@ -73,6 +73,22 @@ router.patch(
   StoreController.updateStore,
 );
 
+router.patch(
+  '/:storeId/font',
+  protect,
+  restrictTo(UserRole.VENDOR),
+  StoreController.handleFontUpload,
+  StoreController.uploadStoreFont,
+);
+
+router.post(
+  '/:storeId/upload-image',
+  protect,
+  restrictTo(UserRole.VENDOR),
+  StoreController.handleBannerUpload,
+  StoreController.uploadBannerImage,
+);
+
 router.get(
   '/:storeId/stats',
   protect,

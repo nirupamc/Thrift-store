@@ -98,7 +98,7 @@ model Vendor {
   displayName String
   avatar      String?
   bio         String?
-  isApproved  Boolean  @default(false)
+  isApproved  Boolean  @default(true)
   isActive    Boolean  @default(true)
   rating      Float    @default(0)
   ratingCount Int      @default(0)
@@ -151,7 +151,7 @@ model Store {
   storeTheme   Json?     // full MySpace-style theme blob (see StoreTheme type)
 
   isActive    Boolean  @default(true)
-  isApproved  Boolean  @default(false)
+  isApproved  Boolean  @default(true)
   policies    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -24,19 +24,6 @@ const FONT_MAP: Record<string, { heading: string; body: string; google?: string 
 
 const MARQUEE_SECS: Record<string, number> = { slow: 22, medium: 13, fast: 6 }
 
-function getBannerStyle(t: StoreTheme): React.CSSProperties {
-  if (t.bannerType === 'image' && t.bannerImageUrl) {
-    return { backgroundImage: `url(${t.bannerImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-  }
-  if (t.bannerType === 'gradient') {
-    const c1 = t.bannerColor1 ?? '#5B21B6'
-    const c2 = t.bannerColor2 ?? '#7C3AED'
-    if (t.bannerGradientDirection === 'radial') return { background: `radial-gradient(circle, ${c1}, ${c2})` }
-    return { background: `linear-gradient(${t.bannerGradientDirection ?? '135deg'}, ${c1}, ${c2})` }
-  }
-  return { backgroundColor: t.bannerColor1 ?? '#5B21B6' }
-}
-
 function getPatternStyle(pattern: string, opacity: number): React.CSSProperties {
   const a = opacity / 100
   const c = `rgba(0,0,0,${a})`
@@ -70,7 +57,7 @@ function getPatternStyle(pattern: string, opacity: number): React.CSSProperties 
 function getBorderCss(t: StoreTheme): React.CSSProperties {
   const s = t.borderStyle
   if (!s || s === 'none') return {}
-  const c = t.borderColor ?? '#5B21B6'
+  const c = t.borderColor ?? '#3B7A57'
   if (s === 'retro') return { border: `4px solid ${c}`, boxShadow: `6px 6px 0 0 ${c}` }
   if (s === 'double') return { border: `3px double ${c}` }
   return { border: `2px ${s} ${c}` }
@@ -79,10 +66,17 @@ function getBorderCss(t: StoreTheme): React.CSSProperties {
 // ─── Page-effect overlay ──────────────────────────────────────────────────────
 
 function PageEffect({ effect }: { effect: string }) {
+  const [running, setRunning] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setRunning(false), 3000)
+    return () => clearTimeout(t)
+  }, [])
+
   const items = useMemo(() => {
     if (effect === 'none') return []
     const count = effect === 'confetti' ? 50 : 20
-    const confettiColors = ['#FF6B6B','#4ECDC4','#45B7D1','#F7B731','#5B21B6','#EA580C']
+    const confettiColors = ['#FF6B6B','#4ECDC4','#45B7D1','#F7B731','#3B7A57','#C4683D']
     return Array.from({ length: count }, (_, i) => ({
       id: i,
       left:     `${(i * 7.31 + 3) % 100}%`,
@@ -94,7 +88,7 @@ function PageEffect({ effect }: { effect: string }) {
     }))
   }, [effect])
 
-  if (effect === 'none') return null
+  if (effect === 'none' || !running) return null
 
   return (
     <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
@@ -102,7 +96,6 @@ function PageEffect({ effect }: { effect: string }) {
         @keyframes sparkle-page { 0%,100%{opacity:0;transform:scale(0) rotate(0deg)} 50%{opacity:1;transform:scale(1) rotate(180deg)} }
         @keyframes fall-page { from{transform:translateY(-20px) rotate(0deg);opacity:1} to{transform:translateY(110vh) rotate(360deg);opacity:0} }
         @keyframes confetti-page { from{transform:translateY(-20px) rotate(0deg)} to{transform:translateY(110vh) rotate(720deg)} }
-        @keyframes marquee-page { from{transform:translateX(100%)} to{transform:translateX(-100%)} }
       `}</style>
       {items.map((item) => (
         <div
@@ -115,7 +108,7 @@ function PageEffect({ effect }: { effect: string }) {
               effect === 'sparkles' ? 'sparkle-page'
               : effect === 'stars' ? 'fall-page'
               : 'confetti-page'
-            } ${item.duration} ${item.delay} infinite ${effect === 'confetti' ? 'linear' : 'ease-in-out'}`,
+            } ${item.duration} ${item.delay} ease-in forwards`,
           }}
         >
           {effect === 'confetti'
@@ -171,10 +164,9 @@ export default function StoreDetailPage() {
   })
 
   const theme: StoreTheme | null = (store?.storeTheme as StoreTheme | null | undefined) ?? null
-  const accent = theme?.accentColor ?? '#5B21B6'
+  const accent = theme?.accentColor ?? '#3B7A57'
   const fonts = FONT_MAP[theme?.fontStyle ?? 'minimal'] ?? FONT_MAP.minimal
 
-  // ── Load Google Fonts for this store's theme ──────────────────────────────
   useEffect(() => {
     if (!theme?.fontStyle || theme.fontStyle === 'minimal') return
     const gf = FONT_MAP[theme.fontStyle]?.google
@@ -188,16 +180,30 @@ export default function StoreDetailPage() {
     document.head.appendChild(link)
   }, [theme?.fontStyle])
 
-  // ── Banner style (legacy bannerColor fallback) ────────────────────────────
-  const bannerStyle: React.CSSProperties = theme
-    ? getBannerStyle(theme)
-    : store?.bannerColor
-      ? { background: `linear-gradient(135deg, ${store.bannerColor}, ${store.bannerColor}99)` }
-      : { background: 'linear-gradient(135deg, #5B21B6, #7C3AED, #EA580C)' }
+  // ── Banner: image → gradient → solid color, always falls back to green ──────
+  const bannerStyle: React.CSSProperties = (() => {
+    if (theme?.bannerType === 'image' && (store?.banner || theme?.bannerImageUrl)) {
+      return {
+        backgroundImage: `url(${store?.banner || theme?.bannerImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    }
+    if (theme?.bannerType === 'gradient') {
+      const c1 = theme.bannerColor1 || '#3B7A57'
+      const c2 = theme.bannerColor2 || '#5A9E63'
+      if (theme.bannerGradientDirection === 'radial') {
+        return { background: `radial-gradient(circle, ${c1}, ${c2})` }
+      }
+      return { background: `linear-gradient(${theme.bannerGradientDirection || '135deg'}, ${c1}, ${c2})` }
+    }
+    return { backgroundColor: store?.bannerColor || theme?.bannerColor1 || '#3B7A57' }
+  })()
 
+  // bgStyle applies ONLY to the product/review content section, not the whole page
   const bgStyle: React.CSSProperties = theme
     ? {
-        backgroundColor: theme.bgColor ?? '#ffffff',
+        backgroundColor: theme.bgColor ?? '#F8F2E8',
         ...getPatternStyle(theme.bgPattern ?? 'none', theme.bgPatternOpacity ?? 30),
       }
     : {}
@@ -209,18 +215,17 @@ export default function StoreDetailPage() {
   const followerCount = store?.followerCount ?? store?._count?.followers ?? 0
 
   const showReviews = theme?.showReviews !== false
-  const showDrops   = theme?.showDrops   !== false
   const showAbout   = theme?.showAbout   !== false
 
   if (storeLoading) {
     return (
-      <div>
-        <Skeleton className="w-full h-52" />
-        <div className="max-w-7xl mx-auto px-4 -mt-12 mb-8">
-          <div className="flex items-end gap-4">
-            <Skeleton className="w-24 h-24 ring-4 ring-white flex-shrink-0" />
-            <div className="pb-2 space-y-2">
-              <Skeleton className="h-6 w-48" />
+      <div className="bg-[#F8F2E8]">
+        <Skeleton className="w-full h-[280px]" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end gap-4 -mt-10 px-2">
+            <Skeleton className="w-20 h-20 flex-shrink-0" />
+            <div className="pb-2 space-y-2 flex-1">
+              <Skeleton className="h-7 w-48" />
               <Skeleton className="h-4 w-32" />
             </div>
           </div>
@@ -239,15 +244,18 @@ export default function StoreDetailPage() {
   }
 
   return (
-    <div style={{ fontFamily: fonts.body, ...borderStyle }}>
+    <div className="bg-[#F8F2E8]" style={{ fontFamily: fonts.body, ...borderStyle }}>
       {theme?.pageEffect && theme.pageEffect !== 'none' && (
         <PageEffect effect={theme.pageEffect} />
       )}
 
       <style>{`@keyframes marquee-store{from{transform:translateX(100%)}to{transform:translateX(-100%)}}`}</style>
 
-      {/* ── Banner ─────────────────────────────────────────────────────────── */}
-      <div className="pixel-border relative w-full h-48 md:h-64" style={bannerStyle}>
+      {/* ── Banner: min 280px tall, full-width ────────────────────────────── */}
+      <div
+        className="relative w-full overflow-hidden"
+        style={{ minHeight: 280, ...bannerStyle }}
+      >
         {stickers.map((s, i) => (
           <span
             key={i}
@@ -259,23 +267,24 @@ export default function StoreDetailPage() {
         ))}
       </div>
 
-      {/* ── Marquee ─────────────────────────────────────────────────────────── */}
+      {/* ── Marquee (below banner, above store info) ───────────────────────── */}
       {theme?.marqueeText && (
-        <div
-          className="overflow-hidden whitespace-nowrap py-1.5 text-sm font-semibold bg-brand-saffron text-white"
-        >
+        <div className="overflow-hidden whitespace-nowrap py-1.5 text-sm font-semibold bg-brand-saffron text-white">
           <span style={{ display: 'inline-block', animation: `marquee-store ${marqueeSecs}s linear infinite` }}>
             {theme.marqueeText}
           </span>
         </div>
       )}
 
-      {/* ── Main content ────────────────────────────────────────────────────── */}
-      <div style={bgStyle}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Store header */}
-          <div className="-mt-12 mb-6 flex flex-col sm:flex-row sm:items-end gap-4 pt-1">
-            <div className="pixel-border relative w-24 h-24 overflow-hidden flex-shrink-0 bg-gray-200">
+      {/* ── Store info: avatar overlaps banner, name + follow below ──────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-2 pb-4">
+          <div className="flex items-end gap-4 -mt-10 relative z-10">
+            {/* Avatar: pokes up 40px into the banner */}
+            <div
+              className="relative w-20 h-20 flex-shrink-0 overflow-hidden bg-gray-200"
+              style={{ border: '4px solid #F8F2E8' }}
+            >
               <Image
                 src={store.avatar ?? store.logo ?? AVATAR_PLACEHOLDER}
                 alt={store.name}
@@ -284,91 +293,93 @@ export default function StoreDetailPage() {
               />
             </div>
 
-            <div className="flex-1 pb-1">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <h1
-                    className="text-3xl font-bold text-white"
-                    style={{ fontFamily: fonts.heading, textShadow: '2px 2px 0 #1a0a3c' }}
-                  >
-                    {store.name}
-                  </h1>
-                  <p className="text-gray-200 text-sm mt-0.5" style={{ textShadow: '1px 1px 0 #1a0a3c' }}>
-                    {store.city}{store.state ? `, ${store.state}` : ''}
-                    {' · '}
-                    {followerCount.toLocaleString('en-IN')} followers
-                  </p>
-                </div>
-                <button
-                  onClick={() => followMutation.mutate()}
-                  disabled={followMutation.isPending}
-                  className={`pixel-btn font-semibold text-sm ${
-                    followed
-                      ? 'bg-white text-brand-purple'
-                      : 'bg-brand-purple text-white'
-                  }`}
-                >
-                  {followed ? 'Following' : 'Follow Store'}
-                </button>
-              </div>
+            <div className="flex-1 min-w-0 mb-2">
+              <h1
+                className="text-2xl sm:text-3xl font-bold leading-tight"
+                style={{ fontFamily: fonts.heading, color: theme?.headingFontColor ?? '#2C2A28' }}
+              >
+                {store.name}
+              </h1>
+              <p className="text-sm mt-0.5" style={{ color: theme?.bodyFontColor ?? '#6B7280' }}>
+                {store.city}{store.state ? `, ${store.state}` : ''}
+                {' · '}
+                {followerCount.toLocaleString('en-IN')} followers
+              </p>
             </div>
+
+            <button
+              onClick={() => followMutation.mutate()}
+              disabled={followMutation.isPending}
+              className={`pixel-btn font-semibold text-sm mb-2 flex-shrink-0 ${
+                followed ? 'bg-white text-brand-purple' : 'bg-brand-purple text-white'
+              }`}
+            >
+              {followed ? 'Following' : 'Follow Store'}
+            </button>
           </div>
 
           {/* Bio */}
           {(store.description ?? store.bio) && showAbout && (
-            <p className="text-gray-600 mb-4 max-w-2xl">{store.description ?? store.bio}</p>
+            <p
+              className="mt-3 mb-3 max-w-2xl text-sm leading-relaxed"
+              style={{ color: theme?.bodyFontColor ?? '#374151' }}
+            >
+              {store.description ?? store.bio}
+            </p>
           )}
 
           {/* Style tags */}
           {store.styleTags?.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-6">
+            <div className="flex flex-wrap gap-2 mt-2">
               {store.styleTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="pixel-btn-sm bg-brand-saffron text-white font-medium"
-                >
+                <span key={tag} className="pixel-btn-sm bg-brand-saffron text-white font-medium">
                   {tag}
                 </span>
               ))}
             </div>
           )}
+        </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 mb-8 border-b-2 border-[#1a0a3c]">
+        {/* Tabs */}
+        <div className="flex gap-1 border-b-2 border-[#2C2A28] mb-0">
+          <button
+            onClick={() => setTab('products')}
+            className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-colors ${
+              tab === 'products'
+                ? 'bg-white text-brand-purple border-l-2 border-r-2 border-t-2 border-[#2C2A28]'
+                : 'bg-brand-cream/50 text-gray-500 hover:bg-brand-cream'
+            }`}
+          >
+            Products
+            {productsData?.meta.total != null && (
+              <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5">
+                {productsData.meta.total}
+              </span>
+            )}
+          </button>
+
+          {showReviews && (
             <button
-              onClick={() => setTab('products')}
+              onClick={() => setTab('reviews')}
               className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-colors ${
-                tab === 'products'
-                  ? 'bg-white pixel-border-purple text-brand-purple'
-                  : 'bg-brand-purple/10 text-gray-500 hover:bg-brand-purple/20'
+                tab === 'reviews'
+                  ? 'bg-white text-brand-purple border-l-2 border-r-2 border-t-2 border-[#2C2A28]'
+                  : 'bg-brand-cream/50 text-gray-500 hover:bg-brand-cream'
               }`}
             >
-              Products
-              {productsData?.meta.total != null && (
-                <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5">
-                  {productsData.meta.total}
-                </span>
-              )}
+              Reviews
             </button>
+          )}
+        </div>
+      </div>
 
-            {showReviews && (
-              <button
-                onClick={() => setTab('reviews')}
-                className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-colors ${
-                  tab === 'reviews'
-                    ? 'bg-white pixel-border-purple text-brand-purple'
-                    : 'bg-brand-purple/10 text-gray-500 hover:bg-brand-purple/20'
-                }`}
-              >
-                Reviews
-              </button>
-            )}
-          </div>
+      {/* ── Products / Reviews with vendor's bgColor applied here only ──────── */}
+      <div style={bgStyle} className="min-h-[40vh]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
           {/* Products tab */}
           {tab === 'products' && (
             <>
-              {/* Grid layout switcher via theme */}
               {(theme?.productLayout === 'list') ? (
                 <div className="space-y-3 mb-8">
                   {productsLoading
@@ -436,7 +447,7 @@ export default function StoreDetailPage() {
               )}
 
               {productsData && productsData.meta.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-4 mt-4 mb-12">
+                <div className="flex items-center justify-center gap-4 mt-4 mb-4">
                   <button
                     disabled={!productsData.meta.hasPrevPage}
                     onClick={() => setProductPage((p) => p - 1)}
@@ -461,7 +472,7 @@ export default function StoreDetailPage() {
 
           {/* Reviews tab */}
           {tab === 'reviews' && showReviews && (
-            <div className="pb-12">
+            <div>
               {reviewsLoading ? (
                 <div className="space-y-4">
                   {Array.from({ length: 4 }).map((_, i) => (
@@ -500,6 +511,7 @@ export default function StoreDetailPage() {
               )}
             </div>
           )}
+
         </div>
       </div>
     </div>
